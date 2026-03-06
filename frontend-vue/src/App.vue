@@ -1,0 +1,44 @@
+<template>
+  <div id="app" class="app-container">
+    <header class="header">
+      <h1>🏥 MedLabAgent - Medical AI System</h1>
+    </header>
+    <main class="main-content">
+      <router-view />
+    </main>
+  </div>
+</template>
+
+<script setup></script>
+
+<style scoped>
+.app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+}
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  overflow: hidden;
+}
+</style>

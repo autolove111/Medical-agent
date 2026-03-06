@@ -1,0 +1,53 @@
+# Java / Maven
+target/
+.classpath
+.project
+.settings/
+*.jar
+*.class
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Frontend
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+
+# Docker
+.dockerignore
+
+# Environment
+.env
+.env.local
+
+# Uploads
+uploads/
+
+# Logs
+logs/
+*.log
+
+# Secrets and keys
+*.key
+*.pem
+apikey.txt
+keys.json
+config/*.secret
+secrets.yml
+.credentials
+.credentials.json
