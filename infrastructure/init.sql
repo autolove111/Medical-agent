@@ -2,8 +2,95 @@
 -- MedLabAgent 数据库初始化脚本
 -- ============================================
 
+-- 创建数据库和用户（需以 postgres 超级用户身份执行）
+-- CREATE DATABASE medlab_db;
+-- CREATE USER medlab_user WITH PASSWORD 'medlab_password';
+-- GRANT ALL PRIVILEGES ON DATABASE medlab_db TO medlab_user;
+
+-- 以下在 medlab_db 数据库中执行 --
+
 -- 创建 pgvector 扩展（用于向量相似度搜索）
 CREATE EXTENSION IF NOT EXISTS vector;
+
+-- ============================================
+-- 用户认证与管理相关表
+-- ============================================
+
+-- 用户表
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) UNIQUE,
+    real_name VARCHAR(100),
+    gender VARCHAR(10),
+    age INT,
+    id_number VARCHAR(50) UNIQUE,
+    create_role VARCHAR(50) DEFAULT 'USER',
+    status VARCHAR(50) DEFAULT 'ACTIVE',
+    medical_history TEXT,
+    last_login_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+
+-- 化验单主表
+CREATE TABLE IF NOT EXISTS lab_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    report_name VARCHAR(255),
+    report_type VARCHAR(100),
+    upload_file_path VARCHAR(500),
+    minio_object_name VARCHAR(500),
+    status VARCHAR(50) DEFAULT 'PENDING',
+    ocr_text TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    report_date DATE
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_lab_reports_user_id ON lab_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_lab_reports_status ON lab_reports(status);
+CREATE INDEX IF NOT EXISTS idx_lab_reports_created_at ON lab_reports(created_at);
+
+-- 化验单详细指标表
+CREATE TABLE IF NOT EXISTS report_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_id UUID NOT NULL REFERENCES lab_reports(id) ON DELETE CASCADE,
+    item_name VARCHAR(255),
+    item_value VARCHAR(255),
+    unit VARCHAR(50),
+    reference_range VARCHAR(255),
+    is_abnormal BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_report_items_report_id ON report_items(report_id);
+
+-- 用户对话记录表
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    report_id UUID REFERENCES lab_reports(id) ON DELETE SET NULL,
+    message_type VARCHAR(50),
+    user_message TEXT,
+    agent_response TEXT,
+    tokens_used INT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 
 -- 知识库记录表
 CREATE TABLE IF NOT EXISTS knowledge_records (

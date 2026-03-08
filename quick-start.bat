@@ -26,7 +26,7 @@ set "ROOT_DIR=%cd%"
 
 REM 启动后端（在新窗口）
 cd /d "%ROOT_DIR%\backend-java"
-start "MedLabAgent Backend" cmd.exe /c "title MedLabAgent Backend & echo. & echo ========== Starting Backend ========== & echo. & set SPRING_PROFILES_ACTIVE=h2 & java -jar target\medlab-agent-system-1.0.0.jar & pause"
+start "MedLabAgent Backend" cmd.exe /c "title MedLabAgent Backend & echo. & echo ========== Starting Backend ========== & echo. & java -jar target\medlab-agent-system-1.0.0.jar & pause"
 
 timeout /t 2
 
@@ -42,7 +42,6 @@ echo.
 echo [INFO] 服务地址：
 echo   前端: http://localhost:5173/
 echo   后端: http://localhost:8080/
-echo   H2数据库管理后台: http://localhost:8080/h2-console
 echo.
 echo [TIPS] 现在两个窗口应该在启动服务，请稍候...
 echo.

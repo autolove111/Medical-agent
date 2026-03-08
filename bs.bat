@@ -12,6 +12,28 @@ echo.
 
 set "ROOT_DIR=%cd%"
 
+REM ========== 清理旧进程 ==========
+echo [INFO] 清理旧进程...
+echo.
+
+taskkill /F /IM java.exe /T 2>nul
+if errorlevel 1 (
+    echo [INFO] 未找到运行中的Java进程
+) else (
+    echo [OK] 已停止后端服务
+)
+
+taskkill /F /IM node.exe /T 2>nul
+if errorlevel 1 (
+    echo [INFO] 未找到运行中的Node进程
+) else (
+    echo [OK] 已停止前端服务
+)
+
+timeout /t 2
+
+echo.
+
 REM 检查Maven
 where mvn >nul 2>&1
 if errorlevel 1 (
@@ -74,7 +96,7 @@ timeout /t 1
 
 REM 启动后端
 cd /d "%ROOT_DIR%\backend-java"
-start "MedLabAgent Backend" cmd.exe /c "title MedLabAgent Backend & echo. & echo ========== Backend Service ========== & echo. & set SPRING_PROFILES_ACTIVE=h2 & java -jar target\medlab-agent-system-1.0.0.jar & pause"
+start "MedLabAgent Backend" cmd.exe /c "title MedLabAgent Backend & echo. & echo ========== Backend Service ========== & echo. & java -jar target\medlab-agent-system-1.0.0.jar & pause"
 
 timeout /t 3
 
