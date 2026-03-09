@@ -4,6 +4,10 @@ REM 快速启动前后端（无需重新编译）
 
 setlocal enabledelayedexpansion
 
+REM 设置 JDK 21
+set "JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.10.7-hotspot"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+
 echo.
 echo ==========================================
 echo MedLabAgent System - Quick Start

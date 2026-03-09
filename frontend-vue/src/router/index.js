@@ -45,12 +45,12 @@ const router = createRouter({
 });
 
 // 路由守卫：检查认证状态
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
-  // 首次加载时，从 localStorage 恢复认证状态
+  // 首次加载时，从 localStorage 恢复并验证认证状态
   if (!authStore.isLoggedIn && localStorage.getItem("token")) {
-    authStore.restoreAuth();
+    await authStore.restoreAuth();
   }
 
   // 如果路由需要认证

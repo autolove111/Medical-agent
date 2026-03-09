@@ -5,7 +5,7 @@ export const useAuthStore = defineStore("auth", {
   state: () => ({
     user: null,
     token: localStorage.getItem("token") || null,
-    isAuthenticated: !!localStorage.getItem("token"),
+    isAuthenticated: false,
     loading: false,
     error: null,
   }),
@@ -137,8 +137,9 @@ export const useAuthStore = defineStore("auth", {
 
     /**
      * 恢复认证状态（页面刷新时使用）
+     * 会向后端验证 token 是否仍然有效
      */
-    restoreAuth() {
+    async restoreAuth() {
       const token = localStorage.getItem("token");
       const user = localStorage.getItem("user");
 
@@ -147,6 +148,14 @@ export const useAuthStore = defineStore("auth", {
         this.user = JSON.parse(user);
         this.isAuthenticated = true;
         ApiService.setAuthToken(token);
+
+        // 向后端验证 token 有效性
+        try {
+          await ApiService.get("/v1/auth/me");
+        } catch (e) {
+          // token 无效或过期，清除登录状态
+          this.logout();
+        }
       }
     },
 

@@ -14,7 +14,7 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
-const showHeader = computed(() => route.name === "Login");
+const showHeader = computed(() => route.name !== "Login");
 </script>
 
 <style scoped>
@@ -44,5 +44,6 @@ const showHeader = computed(() => route.name === "Login");
   display: flex;
   overflow: hidden;
   min-height: 0;
+  width: 100%;
 }
 </style>

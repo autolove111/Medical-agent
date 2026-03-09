@@ -1,122 +1,103 @@
 <template>
-  <div class="login-container">
-    <div class="login-box">
-      <h1 class="login-title">医疗AI智能体</h1>
-      <p class="login-subtitle">MedLabAgent - 健康管理助手</p>
+  <div class="login-page">
+    <div class="login-card">
+      <!-- Logo 区域 -->
+      <div class="login-logo">
+        <div class="logo-icon">🏥</div>
+        <h1>MedLabAgent</h1>
+        <p>医疗AI智能体 · 健康管理助手</p>
+      </div>
 
       <!-- 登录表单 -->
-      <form @submit.prevent="handleLogin" class="login-form" v-if="!isRegister">
-        <div class="form-group">
-          <label for="idNumber">身份证号</label>
+      <form @submit.prevent="handleLogin" v-if="!isRegister">
+        <div class="input-group">
+          <label>身份证号</label>
           <input
             v-model="loginForm.idNumber"
             type="text"
-            id="idNumber"
-            placeholder="请输入身份证号"
-            class="form-control"
+            placeholder="请输入18位身份证号"
             required
           />
         </div>
 
-        <div class="form-group">
-          <label for="password">密码</label>
+        <div class="input-group">
+          <label>密码</label>
           <input
             v-model="loginForm.password"
             type="password"
-            id="password"
             placeholder="请输入密码"
-            class="form-control"
             required
           />
         </div>
 
-        <!-- 错误信息 -->
-        <div v-if="errorMessage" class="error-message">
-          {{ errorMessage }}
-        </div>
+        <div v-if="errorMessage" class="error-msg">{{ errorMessage }}</div>
 
-        <!-- 加载按钮 -->
-        <button type="submit" class="btn btn-primary" :disabled="isLoading">
-          <span v-if="!isLoading">登 录</span>
-          <span v-else>登录中...</span>
+        <button type="submit" class="submit-btn" :disabled="isLoading">
+          {{ isLoading ? "登录中..." : "登 录" }}
         </button>
       </form>
 
       <!-- 注册表单 -->
-      <form @submit.prevent="handleRegister" class="register-form" v-else>
-        <div class="form-group">
-          <label for="reg-realname">真实姓名</label>
+      <form @submit.prevent="handleRegister" v-else>
+        <div class="input-group">
+          <label>真实姓名</label>
           <input
             v-model="registerForm.realName"
             type="text"
-            id="reg-realname"
-            placeholder="请输入您的真实姓名"
-            class="form-control"
+            placeholder="请输入真实姓名"
             required
           />
         </div>
 
-        <div class="form-group">
-          <label for="reg-idnumber">身份证号</label>
+        <div class="input-group">
+          <label>身份证号</label>
           <input
             v-model="registerForm.idNumber"
             type="text"
-            id="reg-idnumber"
             placeholder="18位身份证号"
-            class="form-control"
             required
           />
         </div>
 
-        <div class="form-group">
-          <label for="reg-password">密码</label>
+        <div class="input-group">
+          <label>密码</label>
           <input
             v-model="registerForm.password"
             type="password"
-            id="reg-password"
-            placeholder="至少 6 字符"
-            class="form-control"
+            placeholder="至少6个字符"
             required
           />
         </div>
 
-        <div class="form-group">
-          <label for="reg-confirm-password">确认密码</label>
+        <div class="input-group">
+          <label>确认密码</label>
           <input
             v-model="registerForm.confirmPassword"
             type="password"
-            id="reg-confirm-password"
-            placeholder="确认密码"
-            class="form-control"
+            placeholder="再次输入密码"
             required
           />
         </div>
 
-        <!-- 错误信息 -->
-        <div v-if="errorMessage" class="error-message">
-          {{ errorMessage }}
-        </div>
+        <div v-if="errorMessage" class="error-msg">{{ errorMessage }}</div>
 
-        <!-- 注册按钮 -->
-        <button type="submit" class="btn btn-primary" :disabled="isLoading">
-          <span v-if="!isLoading">注 册</span>
-          <span v-else>注册中...</span>
+        <button type="submit" class="submit-btn" :disabled="isLoading">
+          {{ isLoading ? "注册中..." : "注 册" }}
         </button>
       </form>
 
-      <!-- 切换登录/注册 -->
-      <div class="form-footer">
-        <button type="button" class="toggle-btn" @click="toggleForm">
+      <!-- 切换 -->
+      <div class="switch-link">
+        <span @click="toggleForm">
           {{ isRegister ? "已有账号？返回登录" : "没有账号？立即注册" }}
-        </button>
+        </span>
       </div>
     </div>
 
-    <!-- 底部信息 -->
-    <div class="login-footer">
-      <p>医疗数据已加密存储 • 隐私保护通过国际认证</p>
-      <p>© 2026 MedLabAgent. All rights reserved.</p>
-    </div>
+    <!-- 底部 -->
+    <p class="footer-text">
+      医疗数据已加密存储 · 隐私保护通过国际认证<br />© 2026 MedLabAgent
+    </p>
   </div>
 </template>
 
@@ -195,183 +176,156 @@ export default {
 </script>
 
 <style scoped>
-.login-container {
-  min-height: 100vh;
+.login-page {
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+  z-index: 100;
 }
 
-.login-box {
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  padding: 50px 40px;
-  width: 100%;
-  max-width: 500px;
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 48px 40px 36px;
+  width: 420px;
+  max-width: 90vw;
 }
 
-.login-title {
+/* Logo */
+.login-logo {
   text-align: center;
-  color: #333;
-  margin: 0 0 10px 0;
-  font-size: 28px;
-  font-weight: 600;
+  margin-bottom: 32px;
 }
 
-.login-subtitle {
-  text-align: center;
-  color: #999;
-  margin: 0 0 30px 0;
-  font-size: 14px;
-}
-
-.login-form,
-.register-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  color: #333;
-  font-size: 14px;
-  font-weight: 500;
+.logo-icon {
+  font-size: 48px;
   margin-bottom: 8px;
 }
 
-.form-control {
-  padding: 12px 14px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  background-color: #f9f9f9;
+.login-logo h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 6px;
 }
 
-.form-control:focus {
+.login-logo p {
+  font-size: 13px;
+  color: #a0aec0;
+  margin: 0;
+}
+
+/* 表单 */
+.input-group {
+  margin-bottom: 20px;
+}
+
+.input-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 6px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #2d3748;
+  background: #f7fafc;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.input-group input:focus {
   outline: none;
   border-color: #667eea;
-  background-color: white;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
 
-.form-group.checkbox {
-  flex-direction: row;
-  align-items: center;
-  margin: 10px 0;
+.input-group input::placeholder {
+  color: #cbd5e0;
 }
 
-.form-group.checkbox label {
-  display: flex;
-  align-items: center;
-  margin: 0;
+/* 错误 */
+.error-msg {
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+  border-radius: 8px;
+  padding: 10px 14px;
   font-size: 13px;
-  color: #666;
-}
-
-.form-group.checkbox input[type="checkbox"] {
-  margin-right: 8px;
-  cursor: pointer;
-  width: 16px;
-  height: 16px;
-}
-
-.error-message {
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  padding: 12px;
-  border-radius: 6px;
-  font-size: 14px;
   text-align: center;
+  margin-bottom: 16px;
 }
 
-.btn {
+/* 按钮 */
+.submit-btn {
+  width: 100%;
   padding: 12px;
-  font-size: 16px;
   border: none;
-  border-radius: 6px;
-  cursor: pointer;
+  border-radius: 8px;
+  font-size: 15px;
   font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.btn-primary {
+  color: #fff;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  cursor: pointer;
+  transition: all 0.25s;
+  letter-spacing: 4px;
 }
 
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
 }
 
-.btn:disabled {
-  opacity: 0.6;
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.submit-btn:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-.form-footer {
-  display: flex;
-  justify-content: center;
+/* 切换链接 */
+.switch-link {
+  text-align: center;
   margin-top: 20px;
 }
 
-.toggle-btn {
-  background: none;
-  border: none;
+.switch-link span {
+  font-size: 13px;
   color: #667eea;
-  font-size: 14px;
   cursor: pointer;
-  text-decoration: underline;
-  transition: color 0.3s ease;
 }
 
-.toggle-btn:hover {
+.switch-link span:hover {
   color: #764ba2;
+  text-decoration: underline;
 }
 
-.login-footer {
+/* 底部 */
+.footer-text {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
-  margin-top: 40px;
+  margin-top: 32px;
+  line-height: 1.6;
 }
 
-.login-footer p {
-  margin: 5px 0;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .login-box {
-    padding: 30px 20px;
-  }
-
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .login-title {
-    font-size: 24px;
+@media (max-width: 480px) {
+  .login-card {
+    padding: 32px 24px 28px;
   }
 }
 </style>
