@@ -143,41 +143,168 @@ export default {
   },
 
   /**
+   * 追加病历记录（对话确认后调用）
+   */
+  async appendMedicalHistory(disease, status) {
+    try {
+      const response = await apiClient.post(
+        "/v1/user/medical-history/append",
+        null,
+        {
+          params: { disease, status },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Append medical history failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 更新过敏药物
+   */
+  async updateDrugAllergy(drugAllergy) {
+    try {
+      const response = await apiClient.post(
+        "/v1/user/drug-allergy/update",
+        null,
+        {
+          params: { drugAllergy },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Update drug allergy failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 查询用户病历历史
+   */
+  async getMedicalHistory() {
+    try {
+      const response = await apiClient.get("/v1/user/medical-history");
+      return response.data;
+    } catch (error) {
+      console.error("Get medical history failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 用户登出：通知后端清空会话对话历史
+   */
+  async logout() {
+    try {
+      await apiClient.post("/v1/auth/logout");
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    }
+  },
+
+  /**
+   * 从AI回复中提取疾病和药物过敏信息
+   */
+  async extractKeywords(text) {
+    try {
+      const response = await apiClient.post("/v1/agent/extract-keywords", {
+        text,
+      });
+      return {
+        isMedical: response.data.isMedical || false,
+        diseases: response.data.diseases || "",
+        drugAllergies: response.data.drugAllergies || "",
+      };
+    } catch (error) {
+      console.error("Extract keywords failed:", error);
+      return { isMedical: false, diseases: "", drugAllergies: "" };
+    }
+  },
+
+  /**
    * 流式对话（Fetch 方案 - 大厂主流做法）
    * 完美支持 POST 请求和携带 Authorization Header
    */
   async streamChat(userQuery, onMessage, onError, onDone) {
     const token = localStorage.getItem("token");
 
-    try {
-      // 注意：这里需要带上后端代理前缀 /api
-      const response = await fetch(
-        `/api/v1/agent/chat/stream?userQuery=${encodeURIComponent(userQuery)}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "text/event-stream",
-          },
+    // 注意：这里需要带上后端代理前缀 /api
+    const response = await fetch(
+      `/api/v1/agent/chat/stream?userQuery=${encodeURIComponent(userQuery)}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "text/event-stream",
         },
-      );
+      },
+    );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // 获取流式读取器
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let streamDone = false;
+    let streamMeta = null;
+
+    function processEvent(eventText) {
+      const dataLines = [];
+      for (const line of eventText.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("data:")) {
+          dataLines.push(trimmed.replace(/^data:\s*/, ""));
+        }
+      }
+      if (dataLines.length === 0) return;
+      const fullData = dataLines.join("\n").trim();
+      if (!fullData || fullData === "[DONE]") {
+        streamDone = true;
+        return;
       }
 
-      // 获取流式读取器
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
+      // 解析 [META:{...}] 元数据事件
+      if (fullData.startsWith("[META:") && fullData.endsWith("]")) {
+        try {
+          const metaJson = fullData.substring(6, fullData.length - 1);
+          streamMeta = JSON.parse(metaJson);
+        } catch (e) {
+          console.error("META parse error:", e);
+        }
+        return;
+      }
 
+      try {
+        const parsed = JSON.parse(fullData);
+        if (parsed.content !== undefined) {
+          onMessage(parsed.content);
+          return;
+        }
+      } catch (e) {
+        // 不是JSON，直接作为文本
+      }
+      onMessage(fullData);
+    }
+
+    try {
       while (true) {
         const { value, done } = await reader.read();
-        if (done) {
+        console.log("[SSE] read:", {
+          done,
+          chunkLen: value?.length,
+          raw: value
+            ? decoder.decode(value.slice(0, 200), { stream: false })
+            : null,
+        });
+        if (done || streamDone) {
           if (buffer.trim()) {
             processEvent(buffer);
           }
-          if (onDone) onDone();
           break;
         }
 
@@ -185,42 +312,22 @@ export default {
 
         // SSE事件以双换行 \n\n 分隔
         const events = buffer.split(/\n\n/);
-        // 最后一部分可能不完整，保留
         buffer = events.pop() || "";
 
         for (const event of events) {
           processEvent(event);
+          if (streamDone) break;
         }
+        // [DONE] 已收到，立即退出，不再等待下次 read
+        if (streamDone) break;
       }
-
-      function processEvent(eventText) {
-        // 一个SSE事件可能包含多个 data: 行，需要拼接
-        const dataLines = [];
-        for (const line of eventText.split(/\r?\n/)) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith("data:")) {
-            dataLines.push(trimmed.replace(/^data:\s*/, ""));
-          }
-        }
-        if (dataLines.length === 0) return;
-        const fullData = dataLines.join("\n").trim();
-        if (!fullData || fullData === "[DONE]") return;
-
-        // 尝试解析JSON格式（后端用JSON包装了token）
-        try {
-          const parsed = JSON.parse(fullData);
-          if (parsed.content !== undefined) {
-            onMessage(parsed.content);
-            return;
-          }
-        } catch (e) {
-          // 不是JSON，直接作为文本
-        }
-        onMessage(fullData);
+    } finally {
+      try {
+        reader.cancel();
+      } catch (e) {
+        /* ignore */
       }
-    } catch (error) {
-      console.error("Streaming failed:", error);
-      if (onError) onError(error);
+      if (onDone) onDone(streamMeta);
     }
   },
 };

@@ -24,6 +24,29 @@
 
         <div v-for="msg in messages" :key="msg.id">
           <ChatMessage :message="msg" />
+          <!-- 对话确认按钮：仅在医疗诊断回复完成后显示 -->
+          <div
+            v-if="
+              msg.role === 'assistant' &&
+              msg.content &&
+              !isLoading &&
+              msg.isMedical &&
+              !msg.confirmed &&
+              !msg.rejected
+            "
+            class="confirm-bar"
+          >
+            <span class="confirm-hint">是否将此次诊断记录到您的病历？</span>
+            <button @click="showSaveDialog(msg)" class="confirm-btn">
+              ✅ 记录到病历
+            </button>
+            <button @click="msg.rejected = true" class="reject-btn">
+              ❌ 不记录
+            </button>
+          </div>
+          <div v-if="msg.confirmed" class="confirm-bar confirmed">
+            <span>✅ 已记录到病历</span>
+          </div>
         </div>
 
         <div v-if="isLoading && !isStreaming" class="message assistant">
@@ -59,11 +82,46 @@
         accept="image/*,.pdf"
       />
     </div>
+
+    <!-- 病历保存对话框 -->
+    <div v-if="showMedicalDialog" class="dialog-overlay">
+      <div class="dialog-box">
+        <h3>📋 记录到病历</h3>
+        <div class="dialog-field">
+          <label>疾病/症状：</label>
+          <input
+            v-model="medicalForm.disease"
+            type="text"
+            placeholder="例如：急性扁桃体炎、高热"
+          />
+        </div>
+        <div class="dialog-field">
+          <label>药物过敏：</label>
+          <input
+            v-model="medicalForm.drugAllergy"
+            type="text"
+            placeholder="例如：青霉素（无则留空）"
+          />
+        </div>
+        <div class="dialog-field">
+          <label>当前状态：</label>
+          <select v-model="medicalForm.status">
+            <option value="未康复">未康复</option>
+            <option value="已康复">已康复</option>
+            <option value="待观察">待观察</option>
+          </select>
+        </div>
+        <div class="dialog-actions">
+          <button @click="confirmSave" class="confirm-btn">确认保存</button>
+          <button @click="cancelSave" class="reject-btn">取消</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, computed, nextTick } from "vue";
+import { ref, onMounted, onBeforeUnmount, computed, nextTick } from "vue";
 import ChatMessage from "./ChatMessage.vue";
 import { useChatStore } from "../stores/chatStore";
 import { useAuthStore } from "../stores/authStore";
@@ -84,6 +142,9 @@ export default {
     const isLoading = ref(false);
     const isStreaming = ref(false); // 新增：标记是否正在接收流数据
     const error = ref(null);
+    const showMedicalDialog = ref(false);
+    const currentSaveMsg = ref(null);
+    const medicalForm = ref({ disease: "", status: "未康复" });
 
     const messages = computed(() => chatStore.messages);
     const currentUser = computed(() => authStore.user);
@@ -97,6 +158,16 @@ export default {
       }
     };
 
+    // 页面关闭/刷新时发送登出请求，清空会话历史
+    function handlePageClose() {
+      const token = localStorage.getItem("token");
+      if (token) {
+        navigator.sendBeacon(
+          "/api/v1/auth/logout?token=" + encodeURIComponent(token),
+        );
+      }
+    }
+
     onMounted(async () => {
       if (!authStore.isLoggedIn && localStorage.getItem("token")) {
         authStore.restoreAuth();
@@ -107,12 +178,18 @@ export default {
         return;
       }
 
+      window.addEventListener("beforeunload", handlePageClose);
+
       try {
         await ApiService.checkHealth();
         console.log("Backend service is healthy");
       } catch (err) {
         error.value = "无法连接到后端服务，请检查服务是否运行";
       }
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener("beforeunload", handlePageClose);
     });
 
     async function sendMessage() {
@@ -145,19 +222,34 @@ export default {
 
       try {
         // 3. 调用流式接口
-        await ApiService.streamChat(userMessage, (chunk) => {
-          isStreaming.value = true; // 开始接收数据，隐藏加载圈圈
-
-          // 【核心修复】：不再用 ID 查找，直接抓取列表里的最后一条消息
-          const lastIndex = chatStore.messages.length - 1;
-          const msg = chatStore.messages[lastIndex];
-
-          // 确认最后一条确实是助手的消息，然后追加文字
-          if (msg && msg.role === "assistant") {
-            msg.content += chunk;
-            scrollToBottom(); // 每次文字更新都保持滚动在最底部
-          }
-        });
+        await ApiService.streamChat(
+          userMessage,
+          (chunk) => {
+            isStreaming.value = true;
+            const lastIndex = chatStore.messages.length - 1;
+            const msg = chatStore.messages[lastIndex];
+            if (msg && msg.role === "assistant") {
+              msg.content += chunk;
+              scrollToBottom();
+            }
+          },
+          (streamErr) => {
+            console.error("Stream error:", streamErr);
+          },
+          (metadata) => {
+            console.log("Stream done, metadata:", metadata);
+            const lastMsg = chatStore.messages[chatStore.messages.length - 1];
+            if (lastMsg && lastMsg.role === "assistant" && metadata) {
+              lastMsg.isMedical = metadata.isMedical || false;
+              lastMsg.extractedDiseases = metadata.diseases || "";
+              lastMsg.extractedDrugAllergy = metadata.drugAllergies || "";
+              // 从显示内容中去掉 [META|...] 标记
+              lastMsg.content = lastMsg.content
+                .replace(/\n?\[META\|[^\]]*\]/g, "")
+                .trimEnd();
+            }
+          },
+        );
       } catch (err) {
         error.value = "通信失败: " + err.message;
         const lastIndex = chatStore.messages.length - 1;
@@ -205,23 +297,71 @@ export default {
       }
     }
 
-    function handleLogout() {
-      authStore.logout();
+    async function handleLogout() {
+      await authStore.logout();
+      chatStore.clearMessages();
       router.push("/login");
+    }
+
+    function showSaveDialog(msg) {
+      currentSaveMsg.value = msg;
+      medicalForm.value = {
+        disease: msg.extractedDiseases || "",
+        drugAllergy: msg.extractedDrugAllergy || "",
+        status: "未康复",
+      };
+      showMedicalDialog.value = true;
+    }
+
+    async function confirmSave() {
+      if (
+        !medicalForm.value.disease.trim() &&
+        !medicalForm.value.drugAllergy.trim()
+      )
+        return;
+      try {
+        if (medicalForm.value.disease.trim()) {
+          await ApiService.appendMedicalHistory(
+            medicalForm.value.disease,
+            medicalForm.value.status,
+          );
+        }
+        if (medicalForm.value.drugAllergy.trim()) {
+          await ApiService.updateDrugAllergy(medicalForm.value.drugAllergy);
+        }
+        if (currentSaveMsg.value) {
+          currentSaveMsg.value.confirmed = true;
+        }
+      } catch (err) {
+        error.value = "保存病历失败: " + err.message;
+      } finally {
+        showMedicalDialog.value = false;
+        currentSaveMsg.value = null;
+      }
+    }
+
+    function cancelSave() {
+      showMedicalDialog.value = false;
+      currentSaveMsg.value = null;
     }
 
     return {
       userInput,
       fileInput,
       isLoading,
-      isStreaming, // 暴露给模板
+      isStreaming,
       error,
       messages,
       currentUser,
+      showMedicalDialog,
+      medicalForm,
       sendMessage,
       uploadFile,
       handleFileUpload,
       handleLogout,
+      showSaveDialog,
+      confirmSave,
+      cancelSave,
     };
   },
 };
@@ -434,5 +574,122 @@ export default {
   .input-area input {
     min-width: 100%;
   }
+}
+
+/* 确认栏 */
+.confirm-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #666;
+}
+
+.confirm-bar.confirmed {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.confirm-hint {
+  margin-right: 4px;
+}
+
+.confirm-btn {
+  padding: 4px 12px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.confirm-btn:hover {
+  background: #388e3c;
+}
+
+.reject-btn {
+  padding: 4px 12px;
+  background: #eee;
+  color: #666;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.reject-btn:hover {
+  background: #ddd;
+}
+
+/* 对话框 */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog-box {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 380px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.dialog-box h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.dialog-field {
+  margin-bottom: 14px;
+}
+
+.dialog-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #555;
+}
+
+.dialog-field input,
+.dialog-field select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.dialog-field input:focus,
+.dialog-field select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.dialog-actions .confirm-btn {
+  padding: 8px 20px;
+}
+
+.dialog-actions .reject-btn {
+  padding: 8px 20px;
 }
 </style>

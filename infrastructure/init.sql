@@ -19,27 +19,15 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username VARCHAR(100) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    real_name VARCHAR(100) NOT NULL,
+    id_number VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) UNIQUE,
-    real_name VARCHAR(100),
-    gender VARCHAR(10),
-    age INT,
-    id_number VARCHAR(50) UNIQUE,
-    create_role VARCHAR(50) DEFAULT 'USER',
-    status VARCHAR(50) DEFAULT 'ACTIVE',
-    medical_history TEXT,
-    last_login_time TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    drug_allergy TEXT,
+    lifetime_medical_history TEXT
 );
 
 -- 创建索引
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_id_number ON users(id_number);
 
 -- 化验单主表
 CREATE TABLE IF NOT EXISTS lab_reports (

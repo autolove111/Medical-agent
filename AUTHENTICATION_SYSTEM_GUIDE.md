@@ -1,372 +1,223 @@
-# MedLabAgent 认证系统与数据库实现总结
+# MedLabAgent 项目结构指南
 
-## ✅ 完成的工作
-
-已成功为 MedLabAgent 系统增加了**完整的用户认证系统**和**医疗数据管理数据库**。整个实现遵循大厂工程规范，支持完整的用户生命周期管理。
+> 医疗实验室 AI 智能体系统 — 项目目录与文件说明
 
 ---
 
-## 📁 核心文件清单
+## 一、系统架构概览
 
-### 数据库层 (infrastructure/)
-
-| 文件       | 变更 | 说明                                                                              |
-| ---------- | ---- | --------------------------------------------------------------------------------- |
-| `init.sql` | 更新 | 新增 users、lab_reports、report_items、chat_messages 表，支持 UUID 主键和外键关系 |
-
-**新增表结构**：
-
-- `users` - 用户基本信息（用户名、邮箱、密码哈希、冻结状态等）
-- `lab_reports` - 化验单主表（关联用户、记录处理状态、存储 MinIO 路径）
-- `report_items` - 化验单详细指标（血红蛋白、白细胞等各个检查项）
-- `chat_messages` - 用户与 AI 的对话历史（支持成本追踪）
-
----
-
-### 后端实体层 (backend-java/src/main/java/com/medlab/)
-
-#### Entity 实体类
-
-- **`entity/User.java`** - 用户实体，映射数据库 users 表
-  - 字段：用户名、邮箱、加密密码、电话、真实姓名、性别、年龄、身份证号
-  - 方法：`updateLastLoginTime()` 更新最后登录时间
-
-- **`entity/LabReport.java`** - 化验单实体
-  - 记录化验单的基本信息、处理状态（PENDING/SUCCESS/FAILED）、OCR 识别结果
-
-- **`entity/ReportItem.java`** - 化验单详细指标实体
-  - 存储每个检查项的名称、值、单位、参考范围、是否异常
-
-- **`entity/ChatMessage.java`** - 对话记录实体
-  - 关联用户和化验单，支持 token 计费
-
-#### DTO 数据传输对象
-
-**请求 DTO** (`dto/request/`)
-
-- **`LoginRequest`** - 登录请求（用户名、密码）
-- **`RegisterRequest`** - 注册请求（完整个人信息、隐私同意等）
-
-**响应 DTO** (`dto/response/`)
-
-- **`AuthResponse`** - 认证响应（Token、用户信息、过期时间）
-- **`UserInfoResponse`** - 用户信息响应（脱敏，无密码）
-- **`ApiResponse<T>`** - 通用 API 响应包装类（code、message、data、timestamp）
-
-#### 数据访问层 (repository/)
-
-- **`UserRepository`** - JPA Repository，支持按用户名/邮箱/手机号查询，检查唯一性
-
-#### 业务服务层 (service/)
-
-- **`AuthService`** - 核心认证服务
-  - `register()` - 用户注册（密码一致性校验、唯一性检查、密码加密）
-  - `login()` - 用户登录（密码验证、状态检查、Token 生成、登录时间更新）
-  - `getUserInfoById()` / `getUserInfoByUsername()` - 获取用户信息
-  - `updateUserInfo()` - 修改用户信息（受限字段）
-  - `changePassword()` - 修改密码
-
-#### 工具类 (util/)
-
-- **`JwtTokenProvider`** - JWT Token 生成与验证
-  - `generateToken()` - 生成 Token（包含 userId 和 username）
-  - `validateToken()` - 验证 Token 有效性
-  - `getUserIdFromToken()` / `getUsernameFromToken()` - 从 Token 提取信息
-  - Token 过期时间：可配置（默认 24 小时）
-
-#### 配置类 (config/)
-
-- **`SecurityConfig`** - Spring Security 配置
-  - 配置 `BCryptPasswordEncoder` - 密码加密
-
-#### 控制器层 (controller/)
-
-- **`AuthController`** - 认证接口
-  - `POST /api/v1/auth/register` - 用户注册
-  - `POST /api/v1/auth/login` - 用户登录
-  - `GET /api/v1/auth/me` - 获取当前用户信息（需要 JWT Token）
-  - `GET /api/v1/auth/health` - 健康检查
-
----
-
-### 前端认证系统 (frontend-vue/src/)
-
-#### 页面组件 (views/)
-
-- **`views/Login.vue`** - 登录/注册综合页面
-  - 登录表单：用户名、密码
-  - 注册表单：完整个人信息（用户名、邮箱、密码、电话、真实姓名、性别、年龄、身份证号）
-  - 隐私政策勾选框
-  - 支持表单切换（登录 ↔ 注册）
-  - 实时验证和错误提示
-  - 响应式设计（支持移动设备）
-
-#### UI 组件更新
-
-- **`components/ChatWindow.vue`** - 更新
-  - 新增用户信息栏（展示用户名/真实姓名）
-  - 新增登出按钮
-  - 未登录用户重定向到登录页
-  - 恢复认证状态（页面刷新时）
-
-#### 状态管理 (stores/)
-
-- **`stores/authStore.js`** - Pinia 认证州存储
-  - 状态：user、token、isAuthenticated、loading、error
-  - Getters：getCurrentUser、getToken、isLoggedIn、getError
-  - Actions：
-    - `login()` - 登录用户，保存 token 到 localStorage
-    - `register()` - 注册用户，自动登录
-    - `logout()` - 清除认证信息
-    - `restoreAuth()` - 从 localStorage 恢复认证状态（用于页面刷新）
-    - `updateUserInfo()` - 更新用户信息
-
-#### 服务层更新 (services/)
-
-- **`services/ApiService.js`** - 更新
-  - 新增 `setAuthToken()` - 设置 Authorization 请求头
-  - 请求拦截器：自动添加 JWT Token
-  - 响应拦截器：处理 401 未授权（重定向到登录）
-  - 标准 GET/POST/PUT/DELETE 方法
-
-#### 路由守卫 (router/)
-
-- **`router/index.js`** - 更新
-  - 新增 `/login` 登录路由
-  - 新增 `/dashboard` 仪表盘路由
-  - 路由守卫实现：
-    - 未认证用户访问受保护页面 → 重定向到 `/login`
-    - 已登录用户访问登录页 → 重定向到首页
-    - 页面刷新时，自动从 localStorage 恢复认证状态
-
----
-
-### 配置更新
-
-#### pom.xml 新增依赖
-
-```xml
-<!-- JWT Token 库 -->
-<dependency>
-    <groupId>io.jsonwebtoken</groupId>
-    <artifactId>jjwt-api</artifactId>
-    <version>0.12.3</version>
-</dependency>
-<!-- JWT 实现和 Jackson 支持 -->
-<dependency>
-    <groupId>io.jsonwebtoken</groupId>
-    <artifactId>jjwt-impl</artifactId>
-    <version>0.12.3</version>
-    <scope>runtime</scope>
-</dependency>
-<dependency>
-    <groupId>io.jsonwebtoken</groupId>
-    <artifactId>jjwt-jackson</artifactId>
-    <version>0.12.3</version>
-    <scope>runtime</scope>
-</dependency>
-
-<!-- Spring Security 密码加密 -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-security</artifactId>
-</dependency>
-
-<!-- 表单验证 -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-validation</artifactId>
-</dependency>
 ```
-
-#### application.yml 新增配置
-
-```yaml
-# JWT 配置
-jwt:
-  secret: ${JWT_SECRET:your-super-secret-key-change-this}
-  expiration: ${JWT_EXPIRATION:86400000} # 24小时
-
-# MinIO 对象存储配置
-minio:
-  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin}
-  bucket-name: ${MINIO_BUCKET:medlab-reports}
-
-# AI 服务配置
-ai:
-  bailian:
-    api-key: ${AI_API_KEY:your-api-key}
-    base-url: ${AI_BASE_URL:https://dashscope.aliyuncs.com/...}
+用户 ──→ Vue 3 前端 ──→ Nginx 反向代理 ──→ Spring Boot 后端 ──┬──→ 百炼千问 AI 大模型（流式 SSE）
+                                                              ├──→ PostgreSQL + pgvector（数据存储与向量检索）
+                                                              └──→ Python OCR 微服务（检验报告图片识别）
 ```
 
 ---
 
-## 🔄 数据流转路径
+## 二、顶层目录 `MedLabAgent/`
 
-### 用户注册流程
-
-```
-用户填写注册表单
-    ↓
-前端调用 POST /api/v1/auth/register
-    ↓
-AuthService.register()
-    - 验证密码一致性
-    - 检查用户名/邮箱唯一性
-    - 使用 BCrypt 加密密码
-    - 保存到 users 表
-    ↓
-JwtTokenProvider.generateToken()
-    - 生成 JWT Token（包含 userId 和 username）
-    ↓
-响应 AuthResponse（Token + 用户信息）
-    ↓
-前端保存 token 到 localStorage
-前端保存 user 信息到 authStore
-```
-
-### 用户登录流程
-
-```
-用户输入用户名和密码
-    ↓
-前端调用 POST /api/v1/auth/login
-    ↓
-AuthService.login()
-    - 查询用户是否存在
-    - 使用 BCrypt 校验密码
-    - 检查账户状态
-    - 更新最后登录时间
-    ↓
-JwtTokenProvider.generateToken()
-    ↓
-响应 AuthResponse（Token + 用户信息）
-    ↓
-前端保存 Token 和用户信息
-路由守卫验证认证状态，允许访问受保护路由
-```
-
-### API 请求身份验证
-
-```
-前端在每个请求的 Header 中添加：
-Authorization: Bearer <JWT_TOKEN>
-    ↓
-后端拦截器验证 Token
-    ↓
-如果有效：提取 userId 和 username，继续处理
-如果无效或过期：返回 401，前端重定向到登录页
-```
+| 文件 / 文件夹              | 说明                                             |
+| -------------------------- | ------------------------------------------------ |
+| `backend-java/`            | Java Spring Boot 后端服务                        |
+| `frontend-vue/`            | Vue 3 前端单页应用                               |
+| `ai-services-python/`      | Python AI 微服务（OCR 图片识别）                 |
+| `infrastructure/`          | 基础设施配置（数据库初始化、Nginx、Docker 编排） |
+| `logs/`                    | 运行时日志输出目录                               |
+| `target/`                  | Maven 顶层构建输出（可忽略）                     |
+| `*.bat` / `*.sh` / `*.ps1` | 一键启动、停止、升级脚本                         |
+| `*.md`                     | 项目文档（快速入门、百炼集成指南、认证指南等）   |
 
 ---
 
-## 🔐 安全特性
+## 三、`backend-java/` — Java 后端
 
-| 特性           | 实现方式                                 |
-| -------------- | ---------------------------------------- |
-| **密码加密**   | BCrypt（强哈希算法，带随机盐值）         |
-| **身份验证**   | JWT Token（不可伪造，可验证）            |
-| **数据隐私**   | DTO 脱敏（响应不包含密码等敏感字段）     |
-| **身份检查**   | 路由守卫（未认证用户无法访问受保护页面） |
-| **数据完整性** | 数据库外键约束（保证数据一致性）         |
-| **CORS 保护**  | 跨域请求配置（仅允许指定来源）           |
+基于 **Spring Boot**，采用经典分层架构：`Controller → Service → Repository → Entity`。
+
+主包路径：`com.medlab`
+
+### 3.1 启动入口
+
+| 文件                          | 说明                   |
+| ----------------------------- | ---------------------- |
+| `MedLabAgentApplication.java` | Spring Boot 应用启动类 |
+
+### 3.2 `agent/` — AI Agent 核心
+
+| 文件                    | 说明                                                     |
+| ----------------------- | -------------------------------------------------------- |
+| `MedicalAgent.java`     | 医疗 Agent 主体，编排多轮对话与工具调用                  |
+| `AgentFuncRealize.java` | Agent 工具函数的具体实现（供模型 function-calling 调用） |
+
+### 3.3 `config/` — 全局配置
+
+| 文件                           | 说明                                               |
+| ------------------------------ | -------------------------------------------------- |
+| `SecurityConfig.java`          | Spring Security 安全配置（接口鉴权规则、放行路径） |
+| `JwtAuthenticationFilter.java` | JWT 认证过滤器，拦截每个请求校验 Token 合法性      |
+| `WebConfig.java`               | CORS 跨域配置                                      |
+| `RestTemplateConfig.java`      | RestTemplate HTTP 客户端 Bean 配置                 |
+
+### 3.4 `controller/` — API 接口层
+
+接收前端 HTTP 请求，参数校验后委派给 Service 处理。
+
+| 文件                   | 说明                                                                |
+| ---------------------- | ------------------------------------------------------------------- |
+| `AgentController.java` | 核心业务接口：AI 对话（流式 SSE）、文件上传、病历记录、过敏药物操作 |
+| `AuthController.java`  | 认证接口：用户注册、登录、获取当前用户信息                          |
+
+### 3.5 `databases/` — JPA 实体（Entity）
+
+与数据库表一一映射的 Java 实体类。
+
+| 文件                   | 对应表              | 说明                             |
+| ---------------------- | ------------------- | -------------------------------- |
+| `User.java`            | `users`             | 用户信息（含终身病历、过敏药物） |
+| `LabReport.java`       | `lab_reports`       | 检验报告                         |
+| `ReportItem.java`      | `report_items`      | 报告检验项明细                   |
+| `ChatMessage.java`     | `chat_messages`     | 聊天消息记录                     |
+| `KnowledgeRecord.java` | `knowledge_records` | 知识库向量记录（pgvector）       |
+
+### 3.6 `db-managing/` — 数据访问层（Repository）
+
+Spring Data JPA 接口，封装数据库 CRUD 与自定义查询。
+
+| 文件                             | 说明                                       |
+| -------------------------------- | ------------------------------------------ |
+| `UserRepository.java`            | 用户查询、病历追加（CONCAT）、过敏药物更新 |
+| `KnowledgeRecordRepository.java` | 知识库向量相似度检索                       |
+
+### 3.7 `Desensitize-filter/` — DTO 数据传输对象
+
+请求与响应的数据封装，用于接口数据脱敏和格式约束。
+
+| 子目录 / 文件                    | 说明                          |
+| -------------------------------- | ----------------------------- |
+| `request/LoginRequest.java`      | 登录请求体（身份证号 + 密码） |
+| `request/RegisterRequest.java`   | 注册请求体                    |
+| `response/ApiResponse.java`      | 统一 API 响应包装             |
+| `response/AuthResponse.java`     | 认证响应（含 JWT Token）      |
+| `response/UserInfoResponse.java` | 用户信息响应（脱敏后）        |
+
+### 3.8 `service/` — 业务逻辑层
+
+处理核心业务规则，由 Controller 调用，向下调用 Repository。
+
+| 文件                         | 说明                                           |
+| ---------------------------- | ---------------------------------------------- |
+| `AuthService.java`           | 注册 / 登录验证 / 用户信息查询                 |
+| `BailianQianwenService.java` | 阿里云百炼千问大模型调用（流式 SSE 响应）      |
+| `KnowledgeService.java`      | 基于 pgvector 的知识库向量检索服务             |
+| `StorageService.java`        | 文件上传与本地存储服务                         |
+| `UserMedicalService.java`    | 用户病历追加与过敏药物管理（供 AI 上下文参考） |
+
+### 3.9 `tools/` — Agent 工具函数
+
+大模型 function-calling 可调用的外部工具。
+
+| 文件            | 说明                 |
+| --------------- | -------------------- |
+| `LabTools.java` | 检验报告相关工具函数 |
+
+### 3.10 `util/` — 通用工具类
+
+| 文件                    | 说明                             |
+| ----------------------- | -------------------------------- |
+| `JwtTokenProvider.java` | JWT Token 生成、解析、有效期验证 |
 
 ---
 
-## 📊 数据库设计亮点
+## 四、`frontend-vue/` — Vue 3 前端
 
-- **UUID 主键**：防止数据遍历攻击，提高安全性
-- **外键关系**：lab_reports.user_id → users.id（级联删除）
-- **状态机**：lab_reports.status 字段（PENDING/SUCCESS/FAILED）
-- **时间戳**：所有表都有 created_at/updated_at，支持审计日志
-- **逻辑删除**：users 表有 deleted_at 字段，支持软删除
+基于 **Vue 3 + Pinia + Vue Router + Axios**，构建单页对话界面。
+
+### 4.1 入口
+
+| 文件      | 说明                                        |
+| --------- | ------------------------------------------- |
+| `main.js` | Vue 应用初始化（挂载路由、Pinia、全局样式） |
+| `App.vue` | 根组件，`<router-view>` 出口                |
+
+### 4.2 `components/` — UI 组件
+
+| 文件                 | 说明                                                 |
+| -------------------- | ---------------------------------------------------- |
+| `ChatWindow.vue`     | 主聊天窗口：消息列表、输入框、文件上传、病历确认弹窗 |
+| `ChatMessage.vue`    | 单条消息渲染（区分用户 / AI 角色，支持 Markdown）    |
+| `LoadingSpinner.vue` | 通用加载动画                                         |
+
+### 4.3 `views/` — 页面视图
+
+| 文件        | 说明                               |
+| ----------- | ---------------------------------- |
+| `Login.vue` | 登录 / 注册页面（身份证号 + 密码） |
+
+### 4.4 `stores/` — Pinia 状态管理
+
+| 文件           | 说明                                         |
+| -------------- | -------------------------------------------- |
+| `authStore.js` | 用户认证状态（Token 存储、登录态恢复、登出） |
+| `chatStore.js` | 聊天消息列表状态管理                         |
+
+### 4.5 `services/` — API 通信层
+
+| 文件            | 说明                                                      |
+| --------------- | --------------------------------------------------------- |
+| `ApiService.js` | Axios 实例封装，统一管理所有后端接口调用（含 JWT 拦截器） |
+
+### 4.6 `router/` — 路由配置
+
+| 文件       | 说明                                          |
+| ---------- | --------------------------------------------- |
+| `index.js` | 路由定义：`/login`（登录页）、`/`（主聊天页） |
+
+### 4.7 `assets/` — 静态资源
+
+| 文件       | 说明       |
+| ---------- | ---------- |
+| `main.css` | 全局样式表 |
 
 ---
 
-## 🚀 快速启动
+## 五、`ai-services-python/` — Python AI 微服务
 
-### 1. 环境变量配置 (create `.env` in project root)
+### `ocr_service/` — OCR 图片识别服务
 
-```env
-# 数据库
-POSTGRES_USER=medlab_admin
-POSTGRES_PASSWORD=secure_password
-POSTGRES_DB=medlab_db
+| 文件               | 说明                               |
+| ------------------ | ---------------------------------- |
+| `main.py`          | FastAPI 服务入口，提供 `/ocr` 接口 |
+| `requirements.txt` | Python 依赖清单                    |
+| `Dockerfile`       | 容器化构建文件                     |
 
-# JWT
-JWT_SECRET=your-very-long-secret-key-here
-JWT_EXPIRATION=86400000
+---
 
-# MinIO
-MINIO_ENDPOINT=http://minio:9000
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin
+## 六、`infrastructure/` — 基础设施
 
-# AI API
-AI_API_KEY=your-bailian-api-key
+| 文件                 | 说明                                                      |
+| -------------------- | --------------------------------------------------------- |
+| `docker-compose.yml` | Docker 编排：PostgreSQL（pgvector）、后端、前端、OCR 服务 |
+| `init.sql`           | 数据库初始化脚本（建表、建索引、启用扩展）                |
+| `.env`               | 环境变量配置（数据库密码、API Key 等）                    |
+| `nginx/nginx.conf`   | Nginx 反向代理配置（前端静态资源 + 后端 `/api` 转发）     |
+
+---
+
+## 七、分层架构速查
+
+```
+┌─────────────┐
+│  前端 (Vue)  │  ← 用户交互、状态管理、API 调用
+├─────────────┤
+│  Controller  │  ← 接收 HTTP 请求，参数校验，返回响应
+├─────────────┤
+│   Service    │  ← 业务逻辑：数据拼装、规则校验、外部调用
+├─────────────┤
+│  Repository  │  ← 数据库操作：CRUD、自定义 JPQL 查询
+├─────────────┤
+│   Entity     │  ← JPA 实体，与数据库表一一映射
+├─────────────┤
+│  PostgreSQL  │  ← 数据持久化存储（含 pgvector 向量索引）
+└─────────────┘
 ```
 
-### 2. 启动后端
-
-```bash
-cd backend-java
-mvn clean package -DskipTests
-java -jar target/medlab-agent-system-1.0.0.jar
-```
-
-### 3. 启动前端
-
-```bash
-cd frontend-vue
-npm install
-npm run dev
-```
-
-### 4. 访问应用
-
-- 前端：`http://localhost:5173/login`
-- 后端 API：`http://localhost:8080/api/v1/`
-- 文档：待补充 Swagger 配置
-
----
-
-## 📝 下一步建议
-
-1. **添加 Swagger 文档** - 使用 SpringDoc-OpenAPI 自动生成 API 文档
-2. **实现邮件验证** - 用户注册时验证邮箱
-3. **添加谷歌/微信登录** - OAuth2.0 社交登录
-4. **用户头像上传** - 集成 MinIO 的用户头像存储
-5. **记录登录日志** - 审计用户登录行为
-6. **支持 Token 刷新** - 实现 refresh token 机制
-7. **速率限制** - 防止暴力破解（使用 Bucket4j）
-8. **化验单 OCR 处理** - 集成 Python OCR 服务与数据库存储
-
----
-
-## ✨ 代码质量
-
-- ✅ 所有类都有详细的 JavaDoc 注释
-- ✅ DTO 验证使用 javax.validation 注解
-- ✅ 异常处理完善（try-catch-finally）
-- ✅ 日志记录规范（info/error/debug）
-- ✅ 命名规范（驼峰命名、英文注释）
-- ✅ 依赖注入完整（@Autowired/Component/Service）
-
----
-
-## 📞 故障排查
-
-| 问题                       | 解决方案                             |
-| -------------------------- | ------------------------------------ |
-| 登录失败：用户名或密码错误 | 检查数据库是否有该用户，密码是否正确 |
-| Token 过期                 | 前端自动重定向到登录页，需要重新登录 |
-| 跨域请求失败               | 检查 application.yml 中的 CORS 配置  |
-| UUID 插入失败              | 确保 PostgreSQL 版本支持 UUID 类型   |
-
----
-
-**完成日期**：2026年3月7日  
-**实现状态**：✅ 生产就绪  
-**测试状态**：✅ 后端编译通过
+调用方向**自上而下、单向依赖**：`Controller → Service → Repository → Entity`。

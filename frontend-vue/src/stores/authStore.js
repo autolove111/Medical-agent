@@ -121,7 +121,10 @@ export const useAuthStore = defineStore("auth", {
     /**
      * 用户登出
      */
-    logout() {
+    async logout() {
+      // 先调用后端登出接口，清空会话对话历史
+      await ApiService.logout();
+
       this.token = null;
       this.user = null;
       this.isAuthenticated = false;

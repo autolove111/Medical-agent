@@ -15,7 +15,16 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
-        // 不要修改路径，直接转发完整的 /api/v1/... 请求给后端
+        // 关闭代理缓冲，SSE 流式响应必须实时转发
+        configure: (proxy) => {
+          proxy.on("proxyRes", (proxyRes) => {
+            const ct = proxyRes.headers["content-type"] || "";
+            if (ct.includes("text/event-stream")) {
+              proxyRes.headers["Cache-Control"] = "no-cache";
+              proxyRes.headers["X-Accel-Buffering"] = "no";
+            }
+          });
+        },
       },
     },
   },
