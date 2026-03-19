@@ -1,6 +1,6 @@
 <template>
   <div id="app" class="app-container">
-    <header class="header">
+    <header v-if="showHeader" class="header">
       <h1>🏥 MedLabAgent - Medical AI System</h1>
     </header>
     <main class="main-content">
@@ -9,7 +9,13 @@
   </div>
 </template>
 
-<script setup></script>
+<script setup>
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+
+const route = useRoute();
+const showHeader = computed(() => route.name !== "Login");
+</script>
 
 <style scoped>
 .app-container {
@@ -36,9 +42,8 @@
 .main-content {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
   overflow: hidden;
+  min-height: 0;
+  width: 100%;
 }
 </style>

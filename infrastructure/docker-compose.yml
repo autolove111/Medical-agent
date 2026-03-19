@@ -32,28 +32,46 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/medlab_db
       SPRING_DATASOURCE_USERNAME: medlab_user
       SPRING_DATASOURCE_PASSWORD: medlab_password
+      LANGCHAIN_SERVICE_URL: http://langchain-service:8000
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      langchain-service:
+        condition: service_started
+    networks:
+      - medlab_network
+    volumes:
+      - ./uploads:/app/uploads
+
+  # LangChain 服务（AI Agent + RAG）
+  langchain-service:
+    build:
+      context: ../langchain_service
+      dockerfile: Dockerfile
+    container_name: medlab_langchain
+    environment:
+      DASHSCOPE_API_KEY: sk-7abf8a7f73354b7583e99596c5170d83
+      DASHSCOPE_MODEL: qwen3.5-plus-2026-02-15
+      DATABASE_URL: postgresql://medlab_user:medlab_password@postgres:5432/medlab_db
+      SERVICE_HOST: 0.0.0.0
+      SERVICE_PORT: 8000
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - medlab_network
     volumes:
-      - ./uploads:/app/uploads
-
-  # Python OCR 微服务
-  ocr_service:
-    build:
-      context: ./ai-services-python/ocr_service
-      dockerfile: Dockerfile
-    container_name: medlab_ocr
-    ports:
-      - "8000:8000"
-    networks:
-      - medlab_network
-    environment:
-      - PYTHONUNBUFFERED=1
+      - langchain_vector_db:/app/vector_db
+      - langchain_medical_docs:/app/medical_docs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Nginx 反向代理
   nginx:
@@ -63,11 +81,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./frontend-vue/dist:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../frontend-vue/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
-      - ocr_service
     networks:
       - medlab_network
 
@@ -101,3 +118,5 @@ volumes:
   postgres_data:
   redis_data:
   ollama_data:
+  langchain_vector_db:
+  langchain_medical_docs:
