@@ -1,122 +1,175 @@
-version: "3.8"
-
 services:
-  # PostgreSQL 数据库
-  postgres:
-    image: postgres:15-alpine
-    container_name: medlab_postgres
+  db:
+    image: ${POSTGRES_IMAGE:-docker.m.daocloud.io/postgres:15-alpine}
+    container_name: medlab-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: medlab_db
-      POSTGRES_USER: medlab_user
-      POSTGRES_PASSWORD: medlab_password
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME:-medlab_user}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-medlab_password}
+      TZ: Asia/Shanghai
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - medlab_network
+      - medlab-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U medlab_user -d medlab_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${SPRING_DATASOURCE_USERNAME:-medlab_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Java 后端应用
-  backend:
+  java-backend:
     build:
       context: ../backend-java
       dockerfile: Dockerfile
-    container_name: medlab_backend
+    container_name: medlab-java-backend
+    restart: unless-stopped
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/medlab_db
-      SPRING_DATASOURCE_USERNAME: medlab_user
-      SPRING_DATASOURCE_PASSWORD: medlab_password
-      LANGCHAIN_SERVICE_URL: http://langchain-service:8000
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/medlab_db
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-medlab_user}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-medlab_password}
+      JWT_SECRET: ${JWT_SECRET}
+      UPLOAD_DIR: /app/uploads
+      SERVER_URL: http://localhost:8080
+      LANGCHAIN_SERVICE_URL: http://python-langchain:8000
+      OCR_SERVICE_URL: http://python-ocr:8001
+      JAVA_LOG_LEVEL: ${JAVA_LOG_LEVEL:-INFO}
+      JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8080:8080"
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
-      langchain-service:
-        condition: service_started
+      python-langchain:
+        condition: service_healthy
+      python-ocr:
+        condition: service_healthy
     networks:
-      - medlab_network
+      - medlab-network
     volumes:
       - ./uploads:/app/uploads
+      - medlab_java_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/file/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # LangChain 服务（AI Agent + RAG）
-  langchain-service:
+  python-langchain:
     build:
       context: ../langchain_service
       dockerfile: Dockerfile
-    container_name: medlab_langchain
+    container_name: medlab-langchain
+    restart: unless-stopped
     environment:
-      DASHSCOPE_API_KEY: sk-7abf8a7f73354b7583e99596c5170d83
-      DASHSCOPE_MODEL: qwen3.5-plus-2026-02-15
-      DATABASE_URL: postgresql://medlab_user:medlab_password@postgres:5432/medlab_db
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen3.5-plus-2026-02-15}
+      DATABASE_URL: ${DATABASE_URL}
       SERVICE_HOST: 0.0.0.0
       SERVICE_PORT: 8000
+      OCR_SERVICE_URL: http://python-ocr:8001
+      PYTHON_LOG_LEVEL: ${PYTHON_LOG_LEVEL:-INFO}
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     networks:
-      - medlab_network
+      - medlab-network
     volumes:
+      - ./uploads:/app/uploads
       - langchain_vector_db:/app/vector_db
       - langchain_medical_docs:/app/medical_docs
+      - medlab_python_logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  python-ocr:
+    build:
+      context: ../ai-services-python/ocr_service
+      dockerfile: Dockerfile
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-docker.m.daocloud.io/library/python:3.11-bookworm}
+    container_name: medlab-ocr
+    restart: unless-stopped
+    environment:
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      VISION_MODEL: ${VISION_MODEL:-qwen-vl-plus}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      UPLOAD_DIR: /app/uploads
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30}
+      LLM_API_TIMEOUT: ${LLM_API_TIMEOUT:-60}
+      OCR_CACHE_TTL_SECONDS: ${OCR_CACHE_TTL_SECONDS:-3600}
+      PYTHON_LOG_LEVEL: ${PYTHON_LOG_LEVEL:-INFO}
+    ports:
+      - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - medlab-network
+    volumes:
+      - ./uploads:/app/uploads
+      - medlab_ocr_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: ${REDIS_IMAGE:-docker.m.daocloud.io/redis:7-alpine}
+    container_name: medlab-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - medlab-network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Nginx 反向代理
   nginx:
-    image: nginx:alpine
-    container_name: medlab_nginx
+    image: nginx:latest-alpine
+    container_name: medlab-nginx
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../frontend-vue/dist:/usr/share/nginx/html:ro
+      - medlab_nginx_cache:/var/cache/nginx
     depends_on:
-      - backend
+      - java-backend
+      - python-langchain
+      - python-ocr
     networks:
-      - medlab_network
-
-  # Redis 缓存（可选）
-  redis:
-    image: redis:7-alpine
-    container_name: medlab_redis
-    ports:
-      - "6379:6379"
-    networks:
-      - medlab_network
-    volumes:
-      - redis_data:/data
-
-  # Ollama AI 模型服务（可选）
-  ollama:
-    image: ollama/ollama:latest
-    container_name: medlab_ollama
-    ports:
-      - "11434:11434"
-    networks:
-      - medlab_network
-    volumes:
-      - ollama_data:/root/.ollama
-
-networks:
-  medlab_network:
-    driver: bridge
+      - medlab-network
 
 volumes:
   postgres_data:
   redis_data:
-  ollama_data:
   langchain_vector_db:
   langchain_medical_docs:
+  medlab_java_logs:
+  medlab_python_logs:
+  medlab_ocr_logs:
+  medlab_nginx_cache:
+
+networks:
+  medlab-network:
+    driver: bridge
