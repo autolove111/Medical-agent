@@ -45,6 +45,7 @@ class ChatRequest(BaseModel):
     user_id: Optional[str] = None
     user_context: Optional[str] = None
     history: Optional[List[Dict]] = None
+    ocr_result: Optional[Dict] = None  # 【方案 B】接收 Java 后端的 OCR 识别结果
 
 class ChatResponse(BaseModel):
     content: str
@@ -65,21 +66,31 @@ async def chat(
     userId: Optional[str] = Query(None)      # 【新增】接收 Java 传来的 userId 查询参数
 ):
     try:
+        # 【方案 B】导入 vision_analyzer 模块用于设置 OCR 缓存
+        from vision_analyzer import set_ocr_result
+        
         # 兼容逻辑：优先取 URL 里的参数，如果没有则取 JSON 体里的数据
         query_text = userQuery
         user_id = userId  # 【修复】优先取 URL 参数中的 userId
         user_context = None
+        ocr_result = None
         
         if request:
             query_text = query_text or request.query
             # 只有 URL 中没有 userId 时，才从 request 体中读取
             user_id = user_id or request.user_id
             user_context = request.user_context
+            ocr_result = request.ocr_result  # 【方案 B】从请求中提取 OCR 结果
 
         if not query_text:
             raise HTTPException(status_code=400, detail="Query text is required")
 
         logger.info(f">>> 收到 Java 请求: {query_text}，userId: {user_id}")
+        
+        # 【方案 B】如果接收到 OCR 结果，设置到缓存中
+        if ocr_result:
+            logger.info("✅ 【方案 B】接收到 OCR 识别结果，设置到缓存")
+            set_ocr_result(ocr_result)
         
         agent = create_medical_agent(user_id)
         response, sources = agent.process_query(

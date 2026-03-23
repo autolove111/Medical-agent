@@ -1,27 +1,26 @@
-# 第一步：进入目录
+# 1. 起 Docker 基础服务
+
+cd D:\Users\xiaoli\Desktop\MedLabAgent\infrastructure
+docker compose --env-file ../.env up -d redis python-ocr
+curl http://localhost:8001/health
+
+# 2. 起 LangChain
+
+Remove-Item Env:OCR_SERVICE_URL -ErrorAction SilentlyContinue
+Remove-Item Env:LANGCHAIN_SERVICE_URL -ErrorAction SilentlyContinue
+Remove-Item Env:JAVA_BACKEND_URL -ErrorAction SilentlyContinue
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+Remove-Item Env:SPRING_DATASOURCE_URL -ErrorAction SilentlyContinue
 
 cd D:\Users\xiaoli\Desktop\MedLabAgent\langchain_service
-
-# 第二步：激活 Anaconda
-
-"D:\Users\xiaoli\anaconda3\Scripts\activate.bat" "D:\Users\xiaoli\anaconda3"
-
-# 第三步：启动服务
-
 uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
-# 第一步：进入目录
+# 3. 起 Java
 
 cd D:\Users\xiaoli\Desktop\MedLabAgent\backend-java
+mvn spring-boot:run
 
-# 第二步：运行（使用你刚才成功的命令）
+# 4. 起前端
 
-mvn clean package -DskipTests
-
-java -jar target\medlab-agent-system-1.0.0.jar
-
-# 前端
-
-cd frontend-vue
-
+cd D:\Users\xiaoli\Desktop\MedLabAgent\frontend-vue
 npm run dev

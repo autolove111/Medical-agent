@@ -277,15 +277,12 @@ export default {
       try {
         const response = await ApiService.uploadReport(file);
         if (response.status === "success") {
-          chatStore.addMessage({
-            role: "user",
-            content: `上传文件: ${file.name}`,
-          });
-          chatStore.addMessage({
-            role: "assistant",
-            content: `文件已成功上传。路径: ${response.filePath}`,
-          });
-          scrollToBottom();
+          // 上传成功后，自动向 AI 发送分析请求
+          userInput.value = `请分析这张化验单：${response.filePath}`;
+
+          // 立即清除输入框并发送消息
+          await nextTick();
+          await sendMessage();
         } else {
           error.value = response.message || "上传失败";
         }

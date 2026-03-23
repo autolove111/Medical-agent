@@ -81,7 +81,8 @@ class MedicalAgent:
                 memory=memory,
                 verbose=True,
                 max_iterations=5,
-                early_stopping_method="generate"
+                early_stopping_method="generate",
+                handle_parsing_errors=True
             )
             
             logger.info(f"创建医学 Agent 成功 (用户ID: {self.user_id})")
