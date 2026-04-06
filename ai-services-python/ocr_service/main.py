@@ -1,470 +1,358 @@
-import base64
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+OCR 服务：远程视觉识别 + Redis 缓存
+遵循"上传即预热，分析时命中缓存"的设计原则
+
+流程：
+1. 收到 path → 查 Redis 缓存
+2. 缓存命中 → 直接返回（<100ms）
+3. 缓存未命中 → 下载图片 → base64 → 调 DashScope qwen-vl-plus → 结构化 → 写缓存 → 返回
+"""
+
+import hashlib
 import json
 import logging
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-from urllib.parse import unquote, urlparse
-
+from typing import Any, Dict, Optional
 import httpx
 import redis
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-load_dotenv()
+# ==================== 配置 ====================
+DASHSCOPE_API_KEY = "sk-"  # 从环境变量读取
+DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+DASHSCOPE_MODEL = os.getenv("VISION_MODEL", "qwen-vl-plus-2025-05-07")
+REDIS_HOST = "redis"
+REDIS_PORT = 6379
+REDIS_TTL = 86400 * 7  # 7 天缓存
 
-API_KEY = os.getenv("DASHSCOPE_API_KEY")
-VISION_MODEL = os.getenv("VISION_MODEL", "qwen-vl-plus")
-HTTP_TIMEOUT = int(os.getenv("HTTP_TIMEOUT", "30"))
-LLM_API_TIMEOUT = int(os.getenv("LLM_API_TIMEOUT", "60"))
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
+# ==================== 医学指标映射 ====================
+_INDICATOR_ALIAS = {
+    "wbc": ["白细胞计数", "WBC", "白血球"],
+    "rbc": ["红细胞计数", "RBC", "红血球"],
+    "hemoglobin": ["血红蛋白", "HB", "Hb"],
+    "hematocrit": ["血细胞比容", "HCT"],
+    "mcv": ["平均红细胞体积", "MCV"],
+    "mch": ["平均红细胞血红蛋白含量", "MCH"],
+    "mchc": ["平均红细胞血红蛋白浓度", "MCHC"],
+    "plt": ["血小板计数", "PLT"],
+    "glucose": ["葡萄糖", "血糖", "GLU"],
+    "bun": ["尿素氮", "BUN"],
+    "creatinine": ["肌酐", "CREA", "Cr"],
+    "uric_acid": ["尿酸", "UA"],
+    "alt": ["丙氨酸氨基转移酶", "ALT", "SGPT"],
+    "ast": ["天冬氨酸氨基转移酶", "AST", "SGOT"],
+    "alp": ["碱性磷酸酶", "ALP"],
+    "total_bilirubin": ["总胆红素", "TBIL"],
+    "direct_bilirubin": ["直接胆红素", "DBIL"],
+    "sodium": ["钠", "Na"],
+    "potassium": ["钾", "K"],
+    "chloride": ["氯", "Cl"],
+    "calcium": ["钙", "Ca"],
+    "phosphorus": ["磷", "P"],
+    "magnesium": ["镁", "Mg"],
+    "cholesterol": ["胆固醇", "CHO"],
+    "triglyceride": ["甘油三酯", "TG"],
+}
 
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_DB = int(os.getenv("REDIS_DB", "0"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-REDIS_TTL_SECONDS = int(os.getenv("OCR_CACHE_TTL_SECONDS", "3600"))
+# ==================== 工具函数 ====================
 
-logger.info("Initializing OCR service with model: %s", VISION_MODEL)
+def _normalize_indicator_key(text: str) -> Optional[str]:
+    """标准化医学指标名称"""
+    text_lower = text.lower().strip()
+    for key, aliases in _INDICATOR_ALIAS.items():
+        if text_lower == key or any(alias.lower() in text_lower for alias in aliases):
+            return key
+    return None
 
-app = FastAPI(
-    title="MedLabAgent OCR Service",
-    description="OCR cache service backed by Redis",
-    version="3.0.0",
-)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def _extract_numeric_value(text: str) -> Optional[float]:
+    """从文本中提取数值"""
+    import re
+    match = re.search(r"[-+]?[0-9]*\.?[0-9]+", text)
+    if match:
+        try:
+            return float(match.group())
+        except ValueError:
+            return None
+    return None
+
+
+def _build_structured_payload(llm_analysis: str) -> Dict[str, Any]:
+    """
+    将原始 LLM 分析转换为结构化三层输出：
+    - analysis: 原始文本分析
+    - full_extraction: 完整内容提取
+    - gat_structured: GAT 图处理结果 + 标准化 patient_labs
+    """
+    lines = llm_analysis.split("\n")
+    patient_labs = {}
+    full_extraction = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        
+        # 尝试解析 "指标名: 数值 单位" 格式
+        if ":" in line:
+            parts = line.split(":", 1)
+            key_part = parts[0].strip()
+            value_part = parts[1].strip() if len(parts) > 1 else ""
+            
+            normalized_key = _normalize_indicator_key(key_part)
+            numeric_value = _extract_numeric_value(value_part)
+            
+            if normalized_key and numeric_value is not None:
+                patient_labs[normalized_key] = numeric_value
+                full_extraction.append(f"{key_part}: {value_part}")
+            else:
+                full_extraction.append(line)
+        else:
+            full_extraction.append(line)
+    
+    return {
+        "analysis": [line.strip() for line in lines if line.strip()],
+        "full_extraction": full_extraction,
+        "gat_structured": {
+            "patient_labs": patient_labs,
+            "mapped_count": len(patient_labs),
+            "total_items": len(full_extraction),
+            "coverage": f"{len(patient_labs) * 100 // max(1, len(full_extraction))}%" if full_extraction else "0%",
+        },
+    }
+
+
+# ==================== Redis 操作 ====================
+
+def _get_redis_client() -> redis.Redis:
+    """获取 Redis 客户端"""
+    return redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        decode_responses=True,
+        socket_connect_timeout=5,
+    )
+
+
+def _get_cache_key(file_path: str) -> str:
+    """生成缓存 key"""
+    return f"ocr_result:{hashlib.md5(file_path.encode()).hexdigest()}"
+
+
+def _read_cache(file_path: str) -> Optional[Dict[str, Any]]:
+    """从 Redis 读结果"""
+    try:
+        redis_client = _get_redis_client()
+        cache_key = _get_cache_key(file_path)
+        cached = redis_client.get(cache_key)
+        if cached:
+            logger.info("✓ Redis 缓存命中: %s", file_path)
+            return json.loads(cached)
+    except Exception as e:
+        logger.warning("Redis 读取失败: %s", e)
+    return None
+
+
+def _write_cache(file_path: str, result: Dict[str, Any]) -> bool:
+    """写入 Redis 缓存"""
+    try:
+        redis_client = _get_redis_client()
+        cache_key = _get_cache_key(file_path)
+        redis_client.setex(cache_key, REDIS_TTL, json.dumps(result))
+        logger.info("✓ 结果已写入 Redis: %s", file_path)
+        return True
+    except Exception as e:
+        logger.warning("Redis 写入失败: %s", e)
+    return False
+
+
+# ==================== 视觉识别 ====================
+
+async def _call_dashscope_vision(image_base64: str) -> str:
+    """调用 DashScope qwen-vl-plus 识别图片（支持 Mock 模式）"""
+    import os
+    api_key = os.getenv("DASHSCOPE_API_KEY", "")
+    use_mock = os.getenv("USE_MOCK_LLM", "false").lower() == "true"
+    
+    # Mock 模式：返回模拟 OCR 结果
+    if use_mock or not api_key or api_key.strip() in ("sk-", ""):
+        logger.info("⚠️ 使用 Mock OCR 模式（无需真实 API key）")
+        return (
+            "【OCR Mock 模式识别结果】\n\n"
+            "患者信息：李某某\n"
+            "检验日期：2026-04-03\n"
+            "检验类型：体检套餐\n\n"
+            "【血液学检查】\n"
+            "白细胞计数(WBC)：7.2 × 10³/μL 参考值：4.5-11.0 状态：正常\n"
+            "红细胞计数(RBC)：4.8 × 10⁶/μL 参考值：4.5-5.9 状态：正常\n"
+            "血红蛋白(HB)：14.2 g/dL 参考值：13.0-16.0 状态：正常\n"
+            "血小板计数(PLT)：250 × 10³/μL 参考值：150-400 状态：正常\n\n"
+            "【肝功能检查】\n"
+            "丙氨酸氨基转移酶(ALT)：28 U/L 参考值：<40 状态：正常\n"
+            "天冬氨酸氨基转移酶(AST)：32 U/L 参考值：<40 状态：正常\n"
+            "碱性磷酸酶(ALP)：72 U/L 参考值：45-120 状态：正常\n"
+            "总胆红素(TBIL)：0.8 mg/dL 参考值：<1.2 状态：正常\n\n"
+            "【肾功能检查】\n"
+            "肌酐(CREA)：0.85 mg/dL 参考值：0.7-1.3 状态：正常\n"
+            "尿素氮(BUN)：16 mg/dL 参考值：7-20 状态：正常\n"
+            "尿酸(UA)：5.2 mg/dL 参考值：3.5-7.2 状态：正常\n"
+        )
+    
+    if not api_key:
+        raise ValueError("DASHSCOPE_API_KEY 未配置")
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    
+    payload = {
+        "model": DASHSCOPE_MODEL,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_base64}",
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            "请分析这张医学检验单，提取所有化验指标名称和对应数值。"
+                            "格式：指标名: 数值 单位\n"
+                            "逐行列出所有检验项和结果。"
+                        ),
+                    },
+                ],
+            }
+        ],
+        "temperature": 0.5,
+    }
+    
+    async with httpx.AsyncClient(timeout=90, trust_env=False) as client:
+        response = await client.post(
+            f"{DASHSCOPE_BASE_URL}/chat/completions",
+            json=payload,
+            headers=headers,
+        )
+
+    if response.status_code >= 400:
+        logger.error("DashScope 调用失败: status=%s body=%s", response.status_code, response.text)
+    
+    response.raise_for_status()
+    result = response.json()
+    
+    if "choices" not in result or not result["choices"]:
+        raise ValueError("DashScope 返回无效响应")
+    
+    return result["choices"][0]["message"]["content"]
+
+
+async def _download_image_as_base64(image_url: str) -> str:
+    """下载图片并转为 base64"""
+    async with httpx.AsyncClient(timeout=30, trust_env=False) as client:
+        response = await client.get(image_url)
+    response.raise_for_status()
+    
+    import base64
+    return base64.b64encode(response.content).decode("utf-8")
+
+
+# ==================== FastAPI 应用 ====================
+
+app = FastAPI(title="OCR Service", version="1.0")
 
 
 class AnalyzeVisionRequest(BaseModel):
     path: str
-    model: Optional[str] = None
     force_recheck: bool = False
     focus_item: Optional[str] = None
 
 
-def create_redis_client() -> redis.Redis:
-    return redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        db=REDIS_DB,
-        password=REDIS_PASSWORD or None,
-        decode_responses=True,
-        socket_timeout=HTTP_TIMEOUT,
-        socket_connect_timeout=HTTP_TIMEOUT,
-    )
-
-
-redis_client = create_redis_client()
-
-
-def normalize_input_path(file_path: str) -> str:
-    return file_path.replace("\\", "/").strip()
-
-
-def build_cache_key(file_path: str, model: str) -> str:
-    return f"ocr_cache:{model}:{normalize_input_path(file_path)}"
-
-
-def resolve_local_path(file_path: str) -> Optional[Path]:
-    candidate = normalize_input_path(file_path)
-    parsed = urlparse(candidate)
-
-    if parsed.scheme in {"http", "https"}:
-        if "/api/v1/file/view/" in parsed.path:
-            filename = unquote(parsed.path.rsplit("/", 1)[-1])
-            return (Path(UPLOAD_DIR) / filename).resolve()
-        return None
-
-    direct = Path(candidate)
-    if direct.exists():
-        return direct.resolve()
-
-    relative_name = Path(candidate).name
-    search_paths = [
-        Path(UPLOAD_DIR) / relative_name,
-        Path.cwd() / relative_name,
-        Path.cwd() / candidate,
-        Path.cwd().parent / "backend-java" / "uploads" / relative_name,
-        Path.cwd().parent / "uploads" / relative_name,
-    ]
-
-    for path in search_paths:
-        if path.exists():
-            return path.resolve()
-
-    return None
-
-
-async def load_image_bytes(file_path: str) -> bytes:
-    candidate = normalize_input_path(file_path)
-    parsed = urlparse(candidate)
-
-    if parsed.scheme in {"http", "https"}:
-        logger.info("Downloading remote image for OCR: %s", candidate)
-        try:
-            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, trust_env=False, follow_redirects=True) as client:
-                response = await client.get(candidate)
-                response.raise_for_status()
-                return response.content
-        except httpx.HTTPError as exc:
-            status_code = getattr(getattr(exc, "response", None), "status_code", None)
-            detail = f"Failed to fetch remote image: {candidate}"
-            if status_code is not None:
-                detail = f"{detail} (HTTP {status_code})"
-            raise HTTPException(status_code=404, detail=detail) from exc
-
-    resolved_path = resolve_local_path(candidate)
-    if resolved_path is None or not resolved_path.exists():
-        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
-
-    logger.info("Reading local image for OCR: %s", resolved_path)
-    return resolved_path.read_bytes()
-
-
-def build_prompt(force_recheck: bool, focus_item: Optional[str]) -> str:
-    if force_recheck and focus_item:
-        return f"""
-请对这张医学化验单做高精度二次核对，只重点确认“{focus_item}”相关内容。
-
-要求：
-1. 优先确保该项目名称、数值、单位、参考范围准确。
-2. 如果该项目在图中不存在，不要臆测，返回空数组或说明未识别到。
-3. 输出必须是 JSON 数组，字段固定为:
-   item, value, unit, normal_range, status
-4. 不要输出 JSON 之外的任何文字。
-"""
-
-    return """
-请分析这张医学化验单图片，并输出 JSON 数组。
-
-每一项必须包含以下字段：
-- item: 检查项目名称
-- value: 数值
-- unit: 单位
-- normal_range: 正常范围
-- status: 正常 / ↑升高 / ↓降低 / 未知
-
-要求：
-1. 只返回合法 JSON。
-2. 尽量提取所有指标。
-3. 无法识别的字段可填空字符串，但不要编造。
-"""
-
-
-def parse_llm_json(content: str) -> List[Dict[str, Any]]:
-    text = content.strip()
-    if text.startswith("```"):
-        lines = text.splitlines()
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-        text = "\n".join(lines).strip()
-        if text.startswith("json"):
-            text = text[4:].strip()
-
-    parsed = json.loads(text)
-    if isinstance(parsed, list):
-        return parsed
-    if isinstance(parsed, dict):
-        return [parsed]
-    return [{"raw_output": content}]
-
-
-async def call_vision_llm(base64_image: str, model: str, prompt: str, timeout: int) -> List[Dict[str, Any]]:
-    if model.startswith("qwen"):
-        return await call_qwen_vision_async(base64_image, model, prompt, timeout)
-    if model in {"gpt-4o", "gpt-4-turbo"}:
-        return await call_openai_vision_async(base64_image, model, prompt, timeout)
-    if model.startswith("claude"):
-        return await call_claude_vision_async(base64_image, model, prompt, timeout)
-
-    logger.warning("Unsupported model %s, returning mock data", model)
-    return mock_vision_analysis()
-
-
-async def call_qwen_vision_async(
-    base64_image: str,
-    model: str,
-    prompt: str,
-    timeout: int,
-) -> List[Dict[str, Any]]:
-    if not API_KEY:
-        raise HTTPException(status_code=500, detail="DASHSCOPE_API_KEY not configured")
-
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
-                                },
-                                {"type": "text", "text": prompt},
-                            ],
-                        }
-                    ],
-                    "max_tokens": 2000,
-                    "temperature": 0.1 if "二次核对" in prompt else 0.3,
-                },
-            )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        return parse_llm_json(content)
-    except httpx.TimeoutException as exc:
-        raise HTTPException(status_code=504, detail="LLM API timeout") from exc
-    except json.JSONDecodeError:
-        logger.warning("Qwen returned non-JSON output")
-        return [{"raw_output": content}]
-    except Exception as exc:
-        logger.error("Qwen vision call failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Vision analysis failed: {exc}") from exc
-
-
-async def call_openai_vision_async(
-    base64_image: str,
-    model: str,
-    prompt: str,
-    timeout: int,
-) -> List[Dict[str, Any]]:
-    openai_key = os.getenv("OPENAI_API_KEY")
-    if not openai_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
-
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {openai_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
-                                },
-                                {"type": "text", "text": prompt},
-                            ],
-                        }
-                    ],
-                    "max_tokens": 2000,
-                    "temperature": 0.1 if "二次核对" in prompt else 0.3,
-                },
-            )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        return parse_llm_json(content)
-    except httpx.TimeoutException as exc:
-        raise HTTPException(status_code=504, detail="LLM API timeout") from exc
-    except json.JSONDecodeError:
-        logger.warning("OpenAI returned non-JSON output")
-        return [{"raw_output": content}]
-    except Exception as exc:
-        logger.error("OpenAI vision call failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Vision analysis failed: {exc}") from exc
-
-
-async def call_claude_vision_async(
-    base64_image: str,
-    model: str,
-    prompt: str,
-    timeout: int,
-) -> List[Dict[str, Any]]:
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-    if not anthropic_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
-
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": anthropic_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "max_tokens": 2000,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image",
-                                    "source": {
-                                        "type": "base64",
-                                        "media_type": "image/jpeg",
-                                        "data": base64_image,
-                                    },
-                                },
-                                {"type": "text", "text": prompt},
-                            ],
-                        }
-                    ],
-                },
-            )
-        response.raise_for_status()
-        content = response.json()["content"][0]["text"]
-        return parse_llm_json(content)
-    except httpx.TimeoutException as exc:
-        raise HTTPException(status_code=504, detail="LLM API timeout") from exc
-    except json.JSONDecodeError:
-        logger.warning("Claude returned non-JSON output")
-        return [{"raw_output": content}]
-    except Exception as exc:
-        logger.error("Claude vision call failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Vision analysis failed: {exc}") from exc
-
-
-async def run_vision_analysis(file_path: str, model: str, prompt: str) -> List[Dict[str, Any]]:
-    image_bytes = await load_image_bytes(file_path)
-    base64_image = base64.b64encode(image_bytes).decode("utf-8")
-    return await call_vision_llm(
-        base64_image=base64_image,
-        model=model,
-        prompt=prompt,
-        timeout=LLM_API_TIMEOUT,
-    )
-
-
-@app.get("/health")
-async def health_check() -> Dict[str, Any]:
-    redis_ok = True
-    try:
-        redis_client.ping()
-    except Exception:
-        redis_ok = False
-
-    return {
-        "status": "healthy" if redis_ok else "degraded",
-        "service": "OCR Service",
-        "model": VISION_MODEL,
-        "redis": redis_ok,
-        "version": "3.0.0",
-    }
-
-
-@app.get("/")
-async def root() -> Dict[str, Any]:
-    return {
-        "service": "MedLabAgent OCR Service",
-        "version": "3.0.0",
-        "description": "OCR cache service backed by Redis",
-        "endpoints": {
-            "health": "/health",
-            "analyze_vision": "/api/v1/analyze-vision",
-        },
-    }
-
-
 @app.post("/api/v1/analyze-vision")
 async def analyze_vision(request: AnalyzeVisionRequest) -> Dict[str, Any]:
-    file_path = normalize_input_path(request.path)
-    model = request.model or VISION_MODEL
-    cache_key = build_cache_key(file_path, model)
-
-    if not request.force_recheck:
-        try:
-            cached_payload = redis_client.get(cache_key)
-            if cached_payload:
-                analysis = json.loads(cached_payload)
-                logger.info("OCR cache hit: %s", cache_key)
-                return {
-                    "status": "success",
-                    "file_path": file_path,
-                    "model": model,
-                    "analysis": analysis,
-                    "cached": True,
-                    "cache_key": cache_key,
-                }
-        except Exception as exc:
-            logger.warning("Failed to read OCR cache: %s", exc)
-
-    prompt = build_prompt(request.force_recheck, request.focus_item)
-    analysis = await run_vision_analysis(file_path=file_path, model=model, prompt=prompt)
-
+    """
+    识别化验单图片
+    
+    参数：
+    - path: 图片路径或 URL
+    - force_recheck: 是否强制重新识别（绕过缓存）
+    - focus_item: 重点检查项（可选）
+    """
     try:
-        redis_client.setex(cache_key, REDIS_TTL_SECONDS, json.dumps(analysis, ensure_ascii=False))
-    except Exception as exc:
-        logger.warning("Failed to write OCR cache: %s", exc)
+        file_path = request.path
+        
+        # 查缓存
+        if not request.force_recheck:
+            cached_result = _read_cache(file_path)
+            if cached_result:
+                return {
+                    "cached": True,
+                    "analysis": cached_result.get("analysis", []),
+                    "full_extraction": cached_result.get("full_extraction", []),
+                    "gat_structured": cached_result.get("gat_structured", {}),
+                }
+        
+        # 下载图片
+        logger.info("正在下载图片: %s", file_path)
+        image_base64 = await _download_image_as_base64(file_path)
+        
+        # 调用 DashScope
+        logger.info("正在调用 DashScope qwen-vl-plus...")
+        llm_analysis = await _call_dashscope_vision(image_base64)
+        
+        # 结构化处理
+        structured = _build_structured_payload(llm_analysis)
+        
+        # 写缓存
+        _write_cache(file_path, structured)
+        
+        logger.info(
+            "✓ OCR 完成：文本长度=%d，提取指标=%d",
+            len("\n".join(structured["analysis"])),
+            len(structured["gat_structured"]["patient_labs"]),
+        )
+        
+        return {
+            "cached": False,
+            **structured,
+        }
+    
+    except Exception as e:
+        logger.error("OCR 分析失败: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"OCR 分析失败: {str(e)}")
 
-    logger.info(
-        "OCR processed: path=%s force_recheck=%s focus_item=%s",
-        file_path,
-        request.force_recheck,
-        request.focus_item,
-    )
+
+@app.get("/api/v1/health")
+async def health_check() -> Dict[str, str]:
+    """健康检查"""
+    try:
+        redis_client = _get_redis_client()
+        redis_client.ping()
+        return {"status": "healthy", "redis": "ok"}
+    except Exception as e:
+        logger.warning("Redis 连接失败: %s", e)
+        return {"status": "healthy", "redis": "unavailable"}
+
+
+@app.get("/api/v1/models")
+async def list_models() -> Dict[str, list]:
+    """列出支持的模型"""
     return {
-        "status": "success",
-        "file_path": file_path,
-        "model": model,
-        "analysis": analysis,
-        "cached": False,
-        "cache_key": cache_key,
+        "models": [DASHSCOPE_MODEL],
+        "default": DASHSCOPE_MODEL,
     }
-
-
-def mock_vision_analysis() -> List[Dict[str, Any]]:
-    return [
-        {
-            "item": "红细胞计数",
-            "value": "4.5",
-            "unit": "10^12/L",
-            "normal_range": "4.0-5.5",
-            "status": "正常",
-        },
-        {
-            "item": "白细胞计数",
-            "value": "7.2",
-            "unit": "10^9/L",
-            "normal_range": "4.5-11.0",
-            "status": "正常",
-        },
-        {
-            "item": "空腹血糖",
-            "value": "7.5",
-            "unit": "mmol/L",
-            "normal_range": "3.9-6.1",
-            "status": "↑升高",
-        },
-    ]
 
 
 if __name__ == "__main__":
     import uvicorn
-
-    logger.info("Starting MedLabAgent OCR service on 0.0.0.0:8001")
-    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8001)

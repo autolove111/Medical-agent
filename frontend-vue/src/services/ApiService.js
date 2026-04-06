@@ -97,6 +97,8 @@ export default {
 
   /**
    * AI对话 (传统的同步阻塞方式，等待全部生成完毕才返回)
+   * 注意：前端流式对话功能已改用 fetch 实现，完美支持 POST 请求和携带 Authorization Header
+   * 这个接口仍保留给非流式对话使用，或者作为后端测试接口
    */
   async chat(userQuery) {
     try {

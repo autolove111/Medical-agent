@@ -1,10 +1,14 @@
-FROM python:3.11-slim
+FROM docker.m.daocloud.io/library/python:3.11-slim
 
 WORKDIR /app
 
-# 安装系统依赖
+# 设置 Python 路径
+ENV PYTHONPATH=/app
+
+# 使用官方 Debian 源
 RUN apt-get update && apt-get install -y \
     build-essential \
+    curl \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 

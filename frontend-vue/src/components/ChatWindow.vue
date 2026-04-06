@@ -220,6 +220,7 @@ export default {
       });
       scrollToBottom();
 
+
       try {
         // 3. 调用流式接口
         await ApiService.streamChat(

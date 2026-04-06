@@ -67,7 +67,15 @@ export const useAuthStore = defineStore("auth", {
           throw new Error("登录失败：未收到有效的令牌");
         }
       } catch (error) {
-        this.error = error.message || "登录失败或服务器错误";
+        // 提供详细的错误信息
+        let errorMsg = "登录失败";
+        if (error.message) {
+          errorMsg = error.message;
+        } else if (error.code) {
+          errorMsg = error.code + ": " + (error.message || "未知错误");
+        }
+        console.error("[AuthStore Login Error]", error);
+        this.error = errorMsg;
         this.isAuthenticated = false;
         throw error;
       } finally {

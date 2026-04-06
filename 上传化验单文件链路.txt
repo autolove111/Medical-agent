@@ -1,0 +1,112 @@
+MedLabAgent 上传化验单文件链路（按真实代码）
+
+一、前端触发上传
+1) frontend-vue/src/components/ChatWindow.vue
+   - handleFileUpload(event)
+   - 调用 ApiService.uploadReport(file)
+   - 上传成功后自动构造 userInput = "请分析这张化验单：{response.filePath}"
+   - 然后直接 await sendMessage()，无需用户再点一次发送
+
+2) frontend-vue/src/services/ApiService.js
+   - uploadReport(file)
+   - POST /v1/agent/upload-report
+   - streamChat(userQuery,...)
+   - POST /api/v1/agent/chat/stream?userQuery=...
+   - 以 text/event-stream 读取 SSE 增量消息
+
+二、Java 接收上传并返回可 OCR 访问地址
+3) backend-java/src/main/java/com/medlab/controller/AgentController.java
+   - POST /api/v1/agent/upload-report
+   - 委托 medicalFacadeService.handleUploadAndAppend(file, authHeader)
+
+4) backend-java/src/main/java/com/medlab/service/MedicalFacadeService.java
+   - storageService.store(file) 持久化文件
+   - 组装 browserFileUrl 与 ocrAccessibleUrl
+   - visionService.prefetchOcr(ocrAccessibleUrl) 异步预热 OCR 缓存
+   - 返回给前端 filePath=ocrAccessibleUrl（前端后续用这个 URL 发起分析）
+
+5) backend-java/src/main/java/com/medlab/service/StorageService.java
+   - store(MultipartFile)
+   - 生成 UUID-原文件名，保存到 uploads 目录
+
+（并行可见的上传入口，当前主链路未直接调用）
+6) backend-java/src/main/java/com/medlab/controller/FileController.java
+   - POST /api/v1/file/upload-report
+   - 同样保存文件并调用 visionService.prefetchOcr(ocrAccessibleUrl)
+   - GET /api/v1/file/view/{fileName} 提供图片可访问 URL
+
+三、Java 异步预热 OCR
+7) backend-java/src/main/java/com/medlab/service/VisionService.java
+   - prefetchOcr(String imagePath)
+   - CompletableFuture.runAsync 后台执行
+   - 调用 ocrServiceClient.prefetchVisionCache(imagePath, null)
+
+8) backend-java/src/main/java/com/medlab/service/OcrServiceClient.java
+   - prefetchVisionCache -> analyzeVisionAsync(...)
+   - WebClient POST /api/v1/analyze-vision 到 Python OCR 服务
+
+四、Python OCR 服务识别并缓存
+9) ai-services-python/ocr_service/main.py
+   - POST /api/v1/analyze-vision
+   - _read_cache(file_path)：先查 Redis
+   - 未命中则下载图片 _download_image_as_base64
+   - 调 DashScope 视觉模型 _call_dashscope_vision
+   - 结构化 _build_structured_payload（analysis/full_extraction/gat_structured.patient_labs）
+   - _write_cache(file_path, structured) 回写 Redis
+
+五、前端自动发起分析消息后，Java 转发到 LangChain
+10) frontend-vue/src/components/ChatWindow.vue
+    - sendMessage() -> ApiService.streamChat(...)
+
+11) backend-java/src/main/java/com/medlab/controller/AgentController.java
+    - POST /api/v1/agent/chat/stream (SSE)
+    - 从 JWT 提取 userId，拼到转发请求 queryParam("userId", finalUserId)
+    - WebClient 转发到 Python LangChain: /api/v1/agent/chat/stream
+    - 把 Python chunk 原样 emitter.send(chunk) 回前端
+
+六、Python LangChain 侧处理 OCR URL、提取检验值并推理
+12) langchain_service/core/main.py
+    - POST /api/v1/agent/chat/stream
+    - create_medical_agent(user_id)
+    - agent.stream_query(query, user_context, lab_results)
+    - 以 SSE 形式持续输出 delta/meta/[DONE]
+
+13) langchain_service/core/agent_streaming.py
+    - _build_messages(...)
+    - 从 query 中提取图片 URL
+    - 调 vision.vision_analyzer.analyze_medical_image_comprehensive(image_url)
+    - 得到 ocr_text + extracted_labs（优先复用 OCR 服务缓存）
+    - 合并到 lab_results，进入 RAG + ReAct 多轮分析
+
+14) langchain_service/vision/vision_analyzer.py
+    - analyze_medical_image_comprehensive(image_input)
+    - _fetch_ocr_result_full(...)
+    - 调 OCR 服务 /api/v1/analyze-vision
+    - 返回格式化 OCR 文本和 patient_labs
+
+15) langchain_service/task/hierarchical_main_agent.py
+    - analyze_lab_results(...)
+    - 主 Agent 多轮科室协作、共识、权重迭代
+
+16) langchain_service/task/lightweight_dept_agent.py
+    - 各科室轻量 Agent 分析
+    - 使用主 Agent 下发任务和 patient_profile（含儿科策略）
+
+17) langchain_service/tools.py
+    - query_user_medical_history(user_id)
+    - 在分析中查询病史与过敏信息（已带 UUID 规范化与降级兜底）
+
+七、最终前端展示
+18) frontend-vue/src/services/ApiService.js
+    - streamChat() 解析 SSE data 行
+    - 增量回调 onMessage(content)
+
+19) frontend-vue/src/components/ChatWindow.vue
+    - 将增量内容拼接到 assistant 消息
+    - 最终展示完整化验单分析
+
+补充（运行期配置/编排）
+20) infrastructure/docker-compose.yml
+    - java-backend / python-langchain / python-ocr / redis 服务编排
+    - OCR_SERVICE_URL、BACKEND_URL 等跨服务地址由此生效
+  
