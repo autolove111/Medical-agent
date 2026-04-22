@@ -323,7 +323,7 @@ npm run dev
 ```bash
 # 医学知识库相关
 DASHSCOPE_API_KEY=your-key          # 用于向量嵌入
-DASHSCOPE_MODEL=qwen3.5-plus-*      # 检索 LLM 模型
+DASHSCOPE_MODEL=qwen3-vl-32b-thinking      # 检索 LLM 模型
 
 # Redis 缓存（可选）
 REDIS_HOST=redis                    # Docker 中的 Redis 服务

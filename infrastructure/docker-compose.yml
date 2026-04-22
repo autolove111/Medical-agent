@@ -70,7 +70,7 @@ services:
     environment:
       PYTHONPATH: /app
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
-      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-vl-plus-2025-05-07}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen3-vl-32b-thinking}
       DATABASE_URL: postgresql://medlab_user:medlab_password@db:5432/medlab_db
       LANGCHAIN_TRACING_V2: "false"
       LANGSMITH_TRACING: "false"
@@ -86,6 +86,18 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       RAG_CACHE_TTL_SECONDS: ${RAG_CACHE_TTL_SECONDS:-86400}
       VECTOR_DB_PATH: /app/vector_db
+    command:
+      [
+        "python",
+        "-m",
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+      ]
     ports:
       - "8000:8000"
     depends_on:
@@ -96,6 +108,7 @@ services:
     networks:
       - medlab-network
     volumes:
+      - ../langchain_service:/app # ← 源代码挂载（热重载开发）
       - ./uploads:/app/uploads
       - langchain_vector_db:/app/vector_db
       - langchain_medical_docs:/app/medical_docs
@@ -122,7 +135,7 @@ services:
     restart: unless-stopped
     environment:
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
-      VISION_MODEL: ${VISION_MODEL:-qwen-vl-plus-2025-05-07}
+      VISION_MODEL: ${VISION_MODEL:-qwen3-vl-32b-thinking}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       UPLOAD_DIR: /app/uploads
@@ -140,6 +153,7 @@ services:
     networks:
       - medlab-network
     volumes:
+      - ../ai-services-python/ocr_service:/app # ← 源代码挂载（开发优化）
       - ./uploads:/app/uploads
       - medlab_ocr_logs:/app/logs
     healthcheck:

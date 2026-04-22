@@ -10,6 +10,7 @@
 
 import logging
 import asyncio
+import re
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -170,6 +171,43 @@ class DepartmentAgentCoordinator:
     def _detect_conflicts(self, responses: Dict[str, DepartmentAgentResponse]) -> ConflictReport:
         """检测诊断冲突"""
         conflicts = []
+
+        def _normalize_diag(text: str) -> str:
+            return re.sub(r"\s+", "", str(text or "").lower())
+
+        def _extract_terms(text: str) -> set[str]:
+            t = _normalize_diag(text)
+            terms = set(re.findall(r"[a-z]{4,}", t))
+            for i in range(len(t) - 1):
+                seg = t[i:i + 2]
+                if all("\u4e00" <= ch <= "\u9fff" for ch in seg):
+                    terms.add(seg)
+            return terms
+
+        def _semantic_similarity(d1: str, d2: str) -> float:
+            a = _normalize_diag(d1)
+            b = _normalize_diag(d2)
+            if not a or not b:
+                return 0.0
+            if a == b or a in b or b in a:
+                return 1.0
+            t1 = _extract_terms(a)
+            t2 = _extract_terms(b)
+            if not t1 or not t2:
+                return 0.0
+            inter = len(t1 & t2)
+            union = len(t1 | t2)
+            return inter / max(union, 1)
+
+        def _is_semantic_conflict(diag1: str, diag2: str, conf1: float, conf2: float) -> tuple[bool, str]:
+            sim = _semantic_similarity(diag1, diag2)
+            min_conf = min(float(conf1 or 0.0), float(conf2 or 0.0))
+
+            # 低相似度 + 至少中等置信度 => 认为存在冲突
+            if sim < 0.18 and min_conf >= 0.55:
+                severity = "high" if min_conf >= 0.75 else "medium"
+                return True, severity
+            return False, ""
         
         dept_list = list(responses.keys())
         
@@ -179,29 +217,32 @@ class DepartmentAgentCoordinator:
                 resp1 = responses[dept1]
                 resp2 = responses[dept2]
                 
-                # 简单的冲突检测：主诊断完全不同且都高置信度
-                if resp1.primary_diagnosis.diagnosis != resp2.primary_diagnosis.diagnosis:
-                    if (resp1.primary_diagnosis.confidence > 0.7 and
-                        resp2.primary_diagnosis.confidence > 0.7):
-                        conflicts.append({
-                            "dept1": dept1,
-                            "dept2": dept2,
-                            "diagnosis1": resp1.primary_diagnosis.diagnosis,
-                            "diagnosis2": resp2.primary_diagnosis.diagnosis,
-                            "confidence1": resp1.primary_diagnosis.confidence,
-                            "confidence2": resp2.primary_diagnosis.confidence,
-                            "severity": "high",
-                        })
+                diag1 = resp1.primary_diagnosis.diagnosis
+                diag2 = resp2.primary_diagnosis.diagnosis
+                conf1 = float(resp1.primary_diagnosis.confidence or 0.0)
+                conf2 = float(resp2.primary_diagnosis.confidence or 0.0)
+                is_conflict, severity = _is_semantic_conflict(diag1, diag2, conf1, conf2)
+                if is_conflict:
+                    conflicts.append({
+                        "dept1": dept1,
+                        "dept2": dept2,
+                        "diagnosis1": diag1,
+                        "diagnosis2": diag2,
+                        "confidence1": conf1,
+                        "confidence2": conf2,
+                        "severity": severity,
+                        "similarity": round(_semantic_similarity(diag1, diag2), 3),
+                    })
         
         # 判断冲突级别
         if not conflicts:
             level = ConflictLevel.NONE
-        elif len(conflicts) <= 1:
-            level = ConflictLevel.LOW
+        elif any(c.get("severity") == "high" for c in conflicts):
+            level = ConflictLevel.HIGH
         elif len(conflicts) <= 2:
             level = ConflictLevel.MEDIUM
         else:
-            level = ConflictLevel.HIGH
+            level = ConflictLevel.LOW
         
         return ConflictReport(level=level, conflicts=conflicts)
     

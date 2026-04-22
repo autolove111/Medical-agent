@@ -147,8 +147,8 @@ docker system prune -a
 - `DASHSCOPE_API_KEY` - 阿里千问 API 密钥
 - `OPENAI_API_KEY` - OpenAI API 密钥（可选）
 - `ANTHROPIC_API_KEY` - Claude API 密钥（可选）
-- `VISION_MODEL` - 视觉模型选择
-- `DASHSCOPE_MODEL` - LLM 模型选择
+  -- `VISION_MODEL` - 视觉模型选择（例如 `qwen3-vl-32b-thinking`）
+  -- `DASHSCOPE_MODEL` - LLM 模型选择（例如 `qwen3-vl-32b-thinking`）
 
 ## 🐛 故障排除
 

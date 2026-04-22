@@ -1,11 +1,36 @@
 import axios from "axios";
 
+// 自动决定 API baseURL：默认使用代理前缀 `/api`，
+// 但当前端被一个不带代理的静态 node 服务器（例如 localhost:8890）托管时，
+// 直接指向后端 Spring Boot 服务，避免请求落在前端进程导致 405。
+let computedBase = "/api";
+if (typeof window !== "undefined" && window.location) {
+  const host = window.location.hostname;
+  const port = window.location.port;
+  // 本地开发场景：当前端由静态服务器托管在 8890/8888 端口时，
+  // 强制将 API 指向后端 8080，避免请求落到静态服务器导致 405。
+  if (port === "8890" || port === "8888") {
+    const targetHost = host === "0.0.0.0" || host === "" ? "localhost" : host;
+    computedBase = `http://${targetHost}:8080/api`;
+  }
+}
+
 const apiClient = axios.create({
-  baseURL: "/api",
+  baseURL: computedBase,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+// Debug: 输出当前计算的 API 基址，便于排查请求是否落到前端静态服务
+if (typeof window !== "undefined") {
+  console.log(
+    "[ApiService] computedBase:",
+    computedBase,
+    "window.location:",
+    window.location.href,
+  );
+}
 
 /**
  * API 服务模块
@@ -149,13 +174,11 @@ export default {
    */
   async appendMedicalHistory(disease, status) {
     try {
-      const response = await apiClient.post(
-        "/v1/user/medical-history/append",
-        null,
-        {
-          params: { disease, status },
-        },
-      );
+      // 使用明确的查询字符串，避免 axios 在某些环境下触发不必要的 preflight
+      const url = `/v1/user/medical-history/append?disease=${encodeURIComponent(
+        disease || "",
+      )}&status=${encodeURIComponent(status || "")}`;
+      const response = await apiClient.post(url, null);
       return response.data;
     } catch (error) {
       console.error("Append medical history failed:", error);
@@ -168,13 +191,11 @@ export default {
    */
   async updateDrugAllergy(drugAllergy) {
     try {
-      const response = await apiClient.post(
-        "/v1/user/drug-allergy/update",
-        null,
-        {
-          params: { drugAllergy },
-        },
-      );
+      // 使用 URL 查询字符串，确保请求以 POST 到后端映射的路径，不依赖 axios params 语义
+      const url = `/v1/user/drug-allergy/update?drugAllergy=${encodeURIComponent(
+        drugAllergy || "",
+      )}`;
+      const response = await apiClient.post(url, null);
       return response.data;
     } catch (error) {
       console.error("Update drug allergy failed:", error);
@@ -232,17 +253,23 @@ export default {
   async streamChat(userQuery, onMessage, onError, onDone) {
     const token = localStorage.getItem("token");
 
-    // 注意：这里需要带上后端代理前缀 /api
-    const response = await fetch(
-      `/api/v1/agent/chat/stream?userQuery=${encodeURIComponent(userQuery)}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "text/event-stream",
-        },
+    // 构建完整的后端流式接口 URL，避免相对路径落到当前 origin（例如 :8888 静态服务器）
+    const base =
+      (apiClient.defaults && apiClient.defaults.baseURL) ||
+      computedBase ||
+      "/api";
+    const prefix = base.replace(/\/$/, "");
+    const streamUrl = `${prefix}/v1/agent/chat/stream?userQuery=${encodeURIComponent(
+      userQuery,
+    )}`;
+
+    const response = await fetch(streamUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "text/event-stream",
       },
-    );
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

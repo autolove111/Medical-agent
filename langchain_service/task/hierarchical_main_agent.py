@@ -1,3 +1,4 @@
+
 """
 集成主Agent - 将分层多智能体系统与 GAT-ReAct 整合
 
@@ -11,6 +12,7 @@
 
 import logging
 import asyncio
+import re
 from typing import Dict, List, Optional, Iterator, Set, Any, Tuple
 from datetime import datetime
 from collections import defaultdict
@@ -31,7 +33,7 @@ from .dept_coordinator import DepartmentAgentCoordinator, ConsensusResult
 from utils.weight_updater import get_weight_updater
 from knowledge.medical_knowledge import create_knowledge_base
 from knowledge.reference_ranges import get_reference_range
-from tools import query_user_medical_history, query_medical_knowledge
+from knowledge.tools import query_user_medical_history, query_medical_knowledge, query_user_age_profile
 
 logger = logging.getLogger(__name__)
 
@@ -41,31 +43,101 @@ _REF_CODE_ALIAS = {
 }
 
 _LAB_KEY_ALIAS = {
-    "cr": "Cr",
-    "creatinine": "Cr",
-    "bun": "BUN",
-    "egfr": "eGFR",
-    "k": "K",
-    "po4": "PO4",
-    "phosphorus": "PO4",
+    # ========== 血细胞计数 ==========
     "wbc": "WBC",
     "rbc": "RBC",
     "hb": "Hb",
     "hgb": "Hb",
     "hemoglobin": "Hb",
+    "hematocrit": "HCT",
+    "hct": "HCT",
+    "mcv": "MCV",
+    "mch": "MCH",
+    "mchc": "MCHC",
     "plt": "PLT",
     "platelet": "PLT",
-    "mcv": "MCV",
+    # ========== 白细胞分类 ==========
+    "ne": "NE",
+    "ly": "LY",
+    "mo": "MO",
+    "eo": "EO",
+    "ba": "BA",
+    # ========== 红细胞分类 ==========
+    "nrbc": "NRBC",
+    "rdw": "RDW",
+    # ========== 血小板相关 ==========
+    "mpv": "MPV",
+    "pct": "PCT",
+    "pdw": "PDW",
+    # ========== 生化指标：代谢 ==========
     "glu": "GLU",
     "glucose": "GLU",
+    "bun": "BUN",
+    "cr": "Cr",
+    "creatinine": "Cr",
+    "uric_acid": "UA",
+    "ua": "UA",
+    # ========== 生化指标：肝功能 ==========
+    "alt": "ALT",
+    "ast": "AST",
+    "alp": "ALP",
+    "ggt": "GGT",
+    "total_bilirubin": "TBIL",
+    "direct_bilirubin": "DBIL",
+    "tbil": "TBIL",
+    "dbil": "DBIL",
+    # ========== 生化指标：电解质 ==========
+    "sodium": "Na",
+    "na": "Na",
+    "potassium": "K",
+    "k": "K",
+    "chloride": "Cl",
+    "cl": "Cl",
+    "calcium": "Ca",
+    "ca": "Ca",
+    "phosphorus": "P",
+    "po4": "PO4",
+    "p": "PO4",
+    "magnesium": "Mg",
+    "mg": "Mg",
+    # ========== 生化指标：脂质 ==========
+    "cholesterol": "CHO",
+    "triglyceride": "TG",
+    # ========== 蛋白质代谢 ==========
+    "total_protein": "TP",
+    "albumin": "ALB",
+    "globulin": "GLO",
+    "a_g_ratio": "A/G",
+    # ========== 胆汁和肝脏 ==========
+    "total_bile_acid": "TBA",
+    "cholinesterase": "CHE",
+    # ========== 心肌酶 ==========
+    "creatine_kinase": "CK",
+    "ck": "CK",
+    "ldh": "LDH",
+    "a_hbd": "α-HBD",
+    # ========== 肾功能扩展 ==========
+    "urea": "UREA",
+    "cystatin_c": "CysC",
+    # ========== 酸碱平衡 ==========
+    "co2": "CO2",
+    "ph": "pH",
+    "pco2": "pCO2",
+    "po2": "pO2",
+    "hco3": "HCO3",
+    "o2sat": "O2Sat",
+    # ========== 感染分类（百分比） ==========
+    "neut%": "NEUT%",
+    "lymph%": "LYMPH%",
+    "neut": "NEUT%",
+    "lymph": "LYMPH%",
+    # ========== 原有保留兼容项 ==========
+    "egfr": "eGFR",
     "hba1c": "HbA1c",
     "tsh": "TSH",
     "t3": "T3",
     "t4": "T4",
     "crp": "CRP",
-    "pct": "PCT",
-    "alt": "ALT",
-    "ast": "AST",
 }
 
 
@@ -137,8 +209,157 @@ class HierarchicalMedicalAgent:
             "呼吸科": PulmonaryAgent(use_llm=True),           # ✅ 使用LLM
             "感染科": InfectiousAgent(use_llm=True),          # ✅ 使用LLM
         }
+
+    def _resolve_age_group(self) -> str:
+        """统一年龄分层，作为参考范围选择依据。"""
+        age_years = -1.0
+        try:
+            profile_age = (self.patient_profile or {}).get("age_years")
+            if profile_age is not None:
+                age_years = float(profile_age)
+            else:
+                age_profile = query_user_age_profile(self.user_id) or {}
+                if age_profile.get("age_years") is not None:
+                    age_years = float(age_profile.get("age_years"))
+        except Exception as exc:
+            self.logger.warning("年龄画像查询失败，按 19-64 默认分层处理: %s", exc)
+
+        if 0 <= age_years <= 14:
+            return "0_14"
+        if 15 <= age_years <= 18:
+            return "15_18"
+        if age_years >= 65:
+            return "65_plus"
+        return "19_64"
+
+    def _reference_bounds_by_age_group(
+        self,
+        indicator: str,
+        age_group: str,
+    ) -> tuple[Optional[float], Optional[float]]:
+        code = _REF_CODE_ALIAS.get(indicator, indicator)
+        ref = get_reference_range(code)
+        if not ref:
+            return None, None
+
+        gender_raw = str((self.patient_profile or {}).get("gender", "") or "").strip().lower()
+        if ("女" in gender_raw) or gender_raw.startswith("f"):
+            gender_candidates = [ref.get("female"), ref.get("male")]
+        elif ("男" in gender_raw) or gender_raw.startswith("m"):
+            gender_candidates = [ref.get("male"), ref.get("female")]
+        else:
+            gender_candidates = [ref.get("male"), ref.get("female")]
+
+        match age_group:
+            case "0_14":
+                range_candidates = [
+                    ref.get("pediatric"),
+                    ref.get("child"),
+                    ref.get("infant"),
+                    ref.get("adolescent"),
+                    *gender_candidates,
+                    ref.get("adult"),
+                    ref.get("normal"),
+                ]
+            case "15_18":
+                range_candidates = [
+                    ref.get("adolescent"),
+                    ref.get("teen"),
+                    ref.get("pediatric"),
+                    *gender_candidates,
+                    ref.get("adult"),
+                    ref.get("normal"),
+                ]
+            case "19_64":
+                range_candidates = [
+                    *gender_candidates,
+                    ref.get("fasting"),
+                    ref.get("optimal"),
+                    ref.get("postprandial"),
+                    ref.get("adult"),
+                    ref.get("normal"),
+                ]
+            case "65_plus":
+                range_candidates = [
+                    ref.get("elderly"),
+                    ref.get("geriatric"),
+                    ref.get("senior"),
+                    *gender_candidates,
+                    ref.get("adult"),
+                    ref.get("normal"),
+                ]
+            case _:
+                range_candidates = [
+                    *gender_candidates,
+                    ref.get("adult"),
+                    ref.get("normal"),
+                ]
+
+        for rr in range_candidates:
+            if not isinstance(rr, dict):
+                continue
+            low = rr.get("min")
+            high = rr.get("max")
+            if low is not None or high is not None:
+                return low, high
+        return None, None
+
+    def _compute_abnormal_bundle(self, lab_results: Dict[str, float]) -> Dict[str, Dict[str, Any]]:
+        """主Agent统一计算异常包，供各科室复用，避免重复判定。"""
+        abnormal_bundle: Dict[str, Dict[str, Any]] = {}
+        age_group = self._resolve_age_group()
+
+        for indicator, raw_value in (lab_results or {}).items():
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError):
+                continue
+
+            low, high = self._reference_bounds_by_age_group(indicator, age_group)
+
+            severity = 0
+            direction = "normal"
+            if low is not None and value < low:
+                direction = "low"
+                if low <= 0:
+                    severity = 1
+                else:
+                    ratio = (low - value) / low
+                    if ratio <= 0.15:
+                        severity = 1
+                    elif ratio <= 0.35:
+                        severity = 2
+                    else:
+                        severity = 3
+            elif high is not None and value > high:
+                direction = "high"
+                if high <= 0:
+                    severity = 1
+                else:
+                    ratio = (value - high) / high
+                    if ratio <= 0.15:
+                        severity = 1
+                    elif ratio <= 0.35:
+                        severity = 2
+                    else:
+                        severity = 3
+
+            abnormal_bundle[indicator] = {
+                "value": value,
+                "low": low,
+                "high": high,
+                "direction": direction,
+                "severity": severity,
+                "is_abnormal": severity > 0,
+            }
+
+        return abnormal_bundle
     
-    def _compute_gat_confidence(self, lab_results: Dict[str, float]) -> Dict[str, float]:
+    def _compute_gat_confidence(
+        self,
+        lab_results: Dict[str, float],
+        abnormal_bundle: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> Dict[str, float]:
         """
         使用 GAT 计算各科室的置信度
         
@@ -147,58 +368,93 @@ class HierarchicalMedicalAgent:
         Returns:
             {"肾内科": 0.7, "血液科": 0.6, ...}
         """
-        # 初始化所有科室的置信度
+        # 初始化所有科室的置信度：只看指标名称是否在 lab_results 中出现
         current_weights = self.weight_updater.get_weights()
         confidence_scores = {}
+        # GAT 仅基于指标名称存在性（不使用异常包或数值）
         
         # 简单规则：基于指标计算初始置信度
+        # 这里的指标-科室映射和相关度分数是示例，实际应从数据库或配置加载
         indicator_deps = {
+            # 肾内科
             "Cr": ("肾内科", 0.9),
             "BUN": ("肾内科", 0.85),
+            "UREA": ("肾内科", 0.82),
+            "UA": ("肾内科", 0.75),
+            "CysC": ("肾内科", 0.88),
             "eGFR": ("肾内科", 0.9),
             "K": ("肾内科", 0.8),
+            "Na": ("肾内科", 0.72),
+            "Cl": ("肾内科", 0.68),
+            "Ca": ("肾内科", 0.66),
+            "Mg": ("肾内科", 0.64),
+            "P": ("肾内科", 0.7),
+            "PO4": ("肾内科", 0.7),
+
+            # 血液科
             "WBC": ("血液科", 0.9),
             "RBC": ("血液科", 0.85),
             "Hb": ("血液科", 0.9),
             "PLT": ("血液科", 0.9),
-            "ALT": ("肝胆科", 0.9),
-            "AST": ("肝胆科", 0.85),
+            "HCT": ("血液科", 0.78),
+            "MCV": ("血液科", 0.76),
+            "MCH": ("血液科", 0.72),
+            "MCHC": ("血液科", 0.72),
+            "RDW": ("血液科", 0.7),
+            "NRBC": ("血液科", 0.72),
+
+            # 内分泌科
             "GLU": ("内分泌科", 0.9),
             "HbA1c": ("内分泌科", 0.85),
+            "CHO": ("内分泌科", 0.72),
+            "TG": ("内分泌科", 0.72),
+            "TSH": ("内分泌科", 0.7),
+            "T3": ("内分泌科", 0.66),
+            "T4": ("内分泌科", 0.66),
+
+            # 感染科
+            "CRP": ("感染科", 0.9),
+            "PCT": ("感染科", 0.92),
+            "NEUT%": ("感染科", 0.82),
+            "LYMPH%": ("感染科", 0.74),
+            "NE": ("感染科", 0.8),
+            "LY": ("感染科", 0.72),
+            "MO": ("感染科", 0.68),
+            "EO": ("感染科", 0.62),
+            "BA": ("感染科", 0.6),
+            "ALT": ("感染科", 0.65),
+            "AST": ("感染科", 0.65),
+            "GGT": ("感染科", 0.62),
+            "ALP": ("感染科", 0.6),
+            "TBIL": ("感染科", 0.7),
+            "DBIL": ("感染科", 0.68),
+            "TBA": ("感染科", 0.64),
+            "CHE": ("感染科", 0.6),
+            "TP": ("感染科", 0.58),
+            "ALB": ("感染科", 0.62),
+            "GLO": ("感染科", 0.58),
+            "A/G": ("感染科", 0.58),
+            "CK": ("感染科", 0.58),
+            "LDH": ("感染科", 0.62),
+            "α-HBD": ("感染科", 0.58),
+
+            # 呼吸科
+            "pH": ("呼吸科", 0.86),
+            "pCO2": ("呼吸科", 0.86),
+            "pO2": ("呼吸科", 0.9),
+            "HCO3": ("呼吸科", 0.82),
+            "O2Sat": ("呼吸科", 0.88),
+            "CO2": ("呼吸科", 0.7),
         }
         
-        def _is_abnormal(indicator: str, value: float) -> bool:
-            code = _REF_CODE_ALIAS.get(indicator, indicator)
-            ref = get_reference_range(code)
-            if not ref:
-                return False
-            range_candidates = [
-                ref.get("normal"),
-                ref.get("fasting"),
-                ref.get("adult"),
-                ref.get("male"),
-                ref.get("female"),
-                ref.get("optimal"),
-                ref.get("postprandial"),
-            ]
-            for rr in range_candidates:
-                if not isinstance(rr, dict):
-                    continue
-                low = rr.get("min")
-                high = rr.get("max")
-                if low is not None and value < low:
-                    return True
-                if high is not None and value > high:
-                    return True
-            return False
-
         # 计算各科室的置信度
         for dept in self.dept_agents.keys():
             dept_confidence = 0.0
             dept_indicator_count = 0
             
             for indicator, (dep, rel) in indicator_deps.items():
-                if dep == dept and indicator in lab_results and _is_abnormal(indicator, float(lab_results[indicator])):
+                # 仅基于指标名称存在性计算初始置信度，避免使用数值/严重度影响选科
+                if dep == dept and indicator in lab_results:
                     dept_confidence += rel
                     dept_indicator_count += 1
             
@@ -223,30 +479,40 @@ class HierarchicalMedicalAgent:
         lab_results: Dict[str, float],
         gat_confidence: Dict[str, float],
         round_no: int,
+        abnormal_bundle: Optional[Dict[str, Dict[str, Any]]] = None,
+        user_history_text: str = "",
     ) -> Dict[str, Dict]:
         """构建主Agent下发给各科室的任务分配字段。"""
+        abnormal_bundle = abnormal_bundle or self._compute_abnormal_bundle(lab_results)
         assignments: Dict[str, Dict] = {}
         for dept, agent in self.dept_agents.items():
+
             focus_indicators = [
                 ind
                 for ind in getattr(agent, "key_indicators", [])
-                if ind in lab_results and getattr(agent, "_is_abnormal")(ind, float(lab_results[ind]))
+                if ind in lab_results and bool((abnormal_bundle.get(ind) or {}).get("is_abnormal"))
             ]
+            # 作用是让科室Agent即使在低置信度时也能看到相关异常指标，避免完全被过滤掉导致诊断无据可依的情况
             assignments[dept] = {
                 "round": round_no,
-                "task_goal": "围绕该患者最可能患什么病进行专科判断，并给出需要排除的鉴别诊断",
+                "task_goal": "围绕该患者最可能患什么病进行专科判断，先分析化验单指标和正常指标的偏差，查询专业知识库，给出诊断结论和分析依据，分析可能关联的科室指标和推荐检查。",
                 "department": dept,
                 "focus_indicators": focus_indicators,
+                "abnormal_bundle": abnormal_bundle,
                 "gate_confidence": round(gat_confidence.get(dept, 0.5), 4),
                 "need_user_history": True,
+                "user_history_text": user_history_text,
                 "patient_profile": self.patient_profile,
                 "clinical_prior": self.clinical_prior,
                 "required_output": [
+                    # 诊断结论：primary_diagnosis（必填，明确诊断或症候群，不能只描述症状），confidence（必填，0-1之间），clinical_interpretation（选填，诊断分析和依据），differential_diagnoses（选填，鉴别诊断列表），recommended_tests（选填，推荐检查列表）
                     "primary_diagnosis",
                     "confidence",
                     "clinical_interpretation",
                     "differential_diagnoses",
                     "recommended_tests",
+                    "recommended_departments",
+                    "history_relevance",  # 是否与病史有关，什么关系
                 ],
             }
         return assignments
@@ -274,52 +540,48 @@ class HierarchicalMedicalAgent:
             return True
         return False
 
-    def _weighted_consensus(self, responses: Dict[str, Any], conflict_level) -> ConsensusResult:
-        """病史一致性 + 指标命中 + 科室权重 的加权共识。"""
-        history_text = ""
-        try:
-            history_text = query_user_medical_history(self.user_id) or ""
-        except Exception as exc:
-            self.logger.warning("病史查询失败（共识降级）: %s", exc)
+# 主Agent核心方法：计算注意力权重、识别关键指标簇、执行主循环、更新权重、生成最终诊断、处理用户反馈等
+    def _weighted_consensus(
+        self,
+        responses: Dict[str, Any],
+        conflict_level,
+    ) -> ConsensusResult:
+        """临床先验 + 指标命中 + 科室权重 的加权共识。"""
 
         current_weights = self.weight_updater.get_weights()
         diagnosis_scores = defaultdict(float)
         diagnosis_supporters = defaultdict(list)
 
-        def _history_match_bonus(diag: str, history: str) -> float:
-            d = (diag or "").lower()
-            h = (history or "").lower()
-            if not d or not h:
-                return 0.0
-            pairs = [
-                (["肾", "ckd", "kidney"], ["肾", "ckd", "kidney"]),
-                (["贫血", "anemia"], ["贫血", "anemia"]),
-                (["糖", "糖尿", "diabetes"], ["糖", "糖尿", "diabetes"]),
-                (["肝", "肝炎", "hepat"], ["肝", "肝炎", "hepat"]),
-                (["感染", "infection"], ["感染", "infection"]),
-            ]
-            for diag_keys, hist_keys in pairs:
-                if any(k in d for k in diag_keys) and any(k in h for k in hist_keys):
-                    return 0.1
-            return 0.0
-
-        def _prior_match_bonus(diag: str, prior: str) -> float:
+        def _diag_matches_prior(diag: str, prior: str) -> bool:
             d = (diag or "").lower()
             p = (prior or "").lower()
             if not d or not p:
-                return 0.0
-            rules = [
-                (["肺炎", "感染", "infection", "bronch"], ["肺炎", "感染", "支气管"]),
-                (["贫血", "anemia"], ["贫血", "anemia"]),
-                (["肾", "ckd", "kidney"], ["肾", "ckd", "kidney"]),
-            ]
-            for diag_keys, prior_keys in rules:
-                if any(k in d for k in diag_keys) and any(k in p for k in prior_keys):
-                    return 0.12
-            return 0.0
+                return False
 
-        def _diag_matches_prior(diag: str, prior: str) -> bool:
-            return _prior_match_bonus(diag, prior) > 0
+            # 先尝试直接子串命中，避免明显同义文本被漏判。
+            if d in p or p in d:
+                return True
+
+            def _extract_terms(text: str) -> Set[str]:
+                terms: Set[str] = set()
+                # 英文词：长度>=4，减少噪声。
+                terms.update(re.findall(r"[a-z]{4,}", text))
+                # 中文双字词片段：兼容无空格中文文本。
+                for i in range(len(text) - 1):
+                    seg = text[i:i + 2]
+                    if all("\u4e00" <= ch <= "\u9fff" for ch in seg):
+                        terms.add(seg)
+                return terms
+
+            diag_terms = _extract_terms(d)
+            if not diag_terms:
+                return False
+
+            hit_count = sum(1 for term in diag_terms if term in p)
+            return hit_count >= 1 and (hit_count / max(len(diag_terms), 1)) >= 0.2
+
+        def _prior_match_bonus(diag: str, prior: str) -> float:
+            return 0.12 if _diag_matches_prior(diag, prior) else 0.0
 
         effective_responses = {
             dept: resp for dept, resp in responses.items() if not self._is_low_evidence_response(resp)
@@ -348,12 +610,11 @@ class HierarchicalMedicalAgent:
             base_conf = float(resp.primary_diagnosis.confidence)
             handoff = getattr(resp, "handoff_to_main", {}) or {}
             hit_count = len(handoff.get("hit_indicators", []) or [])
-            history_bonus = _history_match_bonus(diag, history_text)
             prior_bonus = _prior_match_bonus(diag, self.clinical_prior)
             hit_bonus = min(hit_count * 0.02, 0.2)
             dept_weight = float(current_weights.get(dept, 0.5))
 
-            weighted_score = (base_conf + history_bonus + prior_bonus + hit_bonus) * max(dept_weight, 0.1)
+            weighted_score = (base_conf + prior_bonus + hit_bonus) * max(dept_weight, 0.1)
             if prior_virtual_diag and prior_virtual_score > 0:
                 weighted_score *= 0.5
 
@@ -361,12 +622,11 @@ class HierarchicalMedicalAgent:
             diagnosis_supporters[diag].append(dept)
 
             self.logger.info(
-                "[REASONING][主Agent] 共识打分 | 科室=%s 诊断=%s base=%.2f hit=%d bonus(history=%.2f,prior=%.2f,hit=%.2f) weight=%.3f score=%.3f",
+                "[REASONING][主Agent] 共识打分 | 科室=%s 诊断=%s base=%.2f hit=%d bonus(prior=%.2f,hit=%.2f) weight=%.3f score=%.3f",
                 dept,
                 diag,
                 base_conf,
                 hit_count,
-                history_bonus,
                 prior_bonus,
                 hit_bonus,
                 dept_weight,
@@ -419,49 +679,6 @@ class HierarchicalMedicalAgent:
         ]
         return suggestions
 
-    def _is_abnormal_indicator(self, indicator: str, value: float) -> bool:
-        """判断化验指标是否异常，用于主Agent状态更新。"""
-        age_years = float((self.patient_profile or {}).get("age_years", -1))
-        is_pediatric = bool((self.patient_profile or {}).get("is_pediatric")) or (0 <= age_years < 14)
-
-        if is_pediatric:
-            pediatric_ranges = {
-                "Cr": (15.0, 40.0),
-                "TBIL": (0.0, 20.0),
-                "DBIL": (0.0, 8.0),
-                "HB": (95.0, 145.0),
-                "Hb": (95.0, 145.0),
-            }
-            pr = pediatric_ranges.get(indicator)
-            if pr:
-                low, high = pr
-                return value < low or value > high
-
-        code = _REF_CODE_ALIAS.get(indicator, indicator)
-        ref = get_reference_range(code)
-        if not ref:
-            return False
-
-        range_candidates = [
-            ref.get("normal"),
-            ref.get("fasting"),
-            ref.get("adult"),
-            ref.get("male"),
-            ref.get("female"),
-            ref.get("optimal"),
-            ref.get("postprandial"),
-        ]
-        for rr in range_candidates:
-            if not isinstance(rr, dict):
-                continue
-            low = rr.get("min")
-            high = rr.get("max")
-            if low is not None and value < low:
-                return True
-            if high is not None and value > high:
-                return True
-        return False
-
     def _detect_data_quality_issues(self, lab_results: Dict[str, float]) -> List[str]:
         """识别高风险OCR误识别，作为ReAct主动纠错触发条件。"""
         issues: List[str] = []
@@ -474,6 +691,8 @@ class HierarchicalMedicalAgent:
         is_pediatric = bool((self.patient_profile or {}).get("is_pediatric")) or (0 <= age_years < 14)
         if cr is not None and is_pediatric and float(cr) <= 30:
             issues.append(f"儿科患者 Cr={cr} 可能属于正常儿童范围，请勿按成人低值异常解释")
+        if cr is not None and (not is_pediatric) and float(cr) < 40:
+            issues.append(f"成人 Cr={cr} 显著偏低，需优先排查 OCR/单位/样本问题，暂不作为肾损伤阳性证据")
 
         return issues
 
@@ -483,21 +702,10 @@ class HierarchicalMedicalAgent:
         data_quality_issues: List[str],
     ) -> Tuple[Dict[str, float], List[str]]:
         """对高风险异常值做隔离，避免错误数据进入后续共识与选科。"""
+        # 改为不再从推理数据中剔除任何指标，仅保留原始检验结果并返回空的 quarantined 列表。
+        # 数据质量告警仍会在上层被记录，但不会影响后续共识/选科流程。
         sanitized = dict(lab_results or {})
         quarantined: List[str] = []
-        issues_text = " | ".join(data_quality_issues or [])
-
-        if "Hb=" in issues_text and "Hb" in sanitized:
-            sanitized.pop("Hb", None)
-            quarantined.append("Hb")
-
-        age_years = float((self.patient_profile or {}).get("age_years", -1))
-        is_pediatric = bool((self.patient_profile or {}).get("is_pediatric")) or (0 <= age_years < 14)
-        cr_value = sanitized.get("Cr")
-        if is_pediatric and cr_value is not None and float(cr_value) <= 30:
-            sanitized.pop("Cr", None)
-            quarantined.append("Cr")
-
         return sanitized, quarantined
 
     def _prior_department_boost(self, dept: str, prior: str) -> float:
@@ -545,10 +753,13 @@ class HierarchicalMedicalAgent:
             key_indicators = indicator_result.get("key_indicators", [])
             indicator_weights = indicator_result.get("weights", {})
             expert_result = expert_gat.forward(key_indicators, indicator_weights)
+            abnormal_bundle = self._compute_abnormal_bundle(graph_labs)
 
             if not key_indicators:
                 key_indicators = [
-                    k for k, v in graph_labs.items() if self._is_abnormal_indicator(k, float(v))
+                    k
+                    for k in graph_labs.keys()
+                    if bool((abnormal_bundle.get(k) or {}).get("is_abnormal"))
                 ][:5]
                 indicator_weights = {k: 0.5 for k in key_indicators}
 
@@ -566,8 +777,11 @@ class HierarchicalMedicalAgent:
             )
         except Exception as exc:
             self.logger.warning("图推理前置失败，降级启发式调度: %s", exc)
+            abnormal_bundle = self._compute_abnormal_bundle(lab_results or {})
             fallback_keys = [
-                k for k, v in (lab_results or {}).items() if self._is_abnormal_indicator(k, float(v))
+                k
+                for k in (lab_results or {}).keys()
+                if bool((abnormal_bundle.get(k) or {}).get("is_abnormal"))
             ][:5]
             guidance["key_indicators"] = fallback_keys
             guidance["indicator_weights"] = {k: 0.5 for k in fallback_keys}
@@ -578,38 +792,88 @@ class HierarchicalMedicalAgent:
         lab_results: Dict[str, float],
         responses: Dict[str, Any],
     ) -> List[str]:
-        """根据当前证据缺口给出下一步建议检查。"""
-        tests: List[str] = []
+        """基于多科室证据的动态补检推荐（打分排序），避免硬编码疾病清单。"""
+        abnormal_bundle = self._compute_abnormal_bundle(lab_results or {})
+        current_labs = set((lab_results or {}).keys())
+        current_weights = self.weight_updater.get_weights()
+        candidate_scores: Dict[str, float] = defaultdict(float)
+        candidate_reasons: Dict[str, List[str]] = defaultdict(list)
 
-        if "WBC" in lab_results and self._is_abnormal_indicator("WBC", float(lab_results["WBC"])):
-            if "CRP" not in lab_results:
-                tests.append("CRP")
-            if "PCT" not in lab_results:
-                tests.append("PCT")
+        def _add_candidate(test_name: str, score: float, reason: str) -> None:
+            t = str(test_name or "").strip()
+            if not t:
+                return
+            if t in current_labs:
+                return
+            candidate_scores[t] += max(float(score), 0.0)
+            candidate_reasons[t].append(reason)
 
-        if "Hb" in lab_results and self._is_abnormal_indicator("Hb", float(lab_results["Hb"])):
-            if "MCV" in lab_results and float(lab_results["MCV"]) > 100:
-                tests.extend(["维生素B12", "叶酸"])
-            tests.append("网织红细胞计数")
+        def _is_abn(indicator: str) -> bool:
+            return bool((abnormal_bundle.get(indicator) or {}).get("is_abnormal"))
 
-        if "Cr" in lab_results and self._is_abnormal_indicator("Cr", float(lab_results["Cr"])):
-            tests.extend(["尿常规", "尿蛋白/肌酐比值", "肾脏超声"])
+        # 1) 异常严重度驱动：优先建议复查高严重度异常指标，减少漏证据。
+        for indicator, info in abnormal_bundle.items():
+            severity = int((info or {}).get("severity", 0) or 0)
+            if severity <= 0:
+                continue
+            _add_candidate(
+                f"复查{indicator}",
+                0.5 + min(severity * 0.2, 0.6),
+                f"{indicator}异常严重度={severity}",
+            )
 
-        prior = (self.clinical_prior or "").lower()
-        if any(k in prior for k in ["肺炎", "支气管", "感染", "pneumonia", "infection"]):
-            for t in ["CRP", "PCT", "胸部X线"]:
-                if t not in tests:
-                    tests.append(t)
+        # 2) 科室回传驱动：融合各科 recommended_tests，按科室权重和置信度加权。
+        for dept, resp in (responses or {}).items():
+            dept_weight = float(current_weights.get(dept, 0.5))
+            resp_conf = float(getattr(getattr(resp, "primary_diagnosis", None), "confidence", 0.5) or 0.5)
+            base_score = max(dept_weight, 0.1) * max(resp_conf, 0.1)
 
-        for resp in responses.values():
             for t in getattr(resp, "recommended_tests", []) or []:
-                tests.append(t)
+                _add_candidate(t, 0.7 * base_score, f"{dept}建议检查")
 
-        dedup: List[str] = []
-        for t in tests:
-            if t not in dedup:
-                dedup.append(t)
-        return dedup[:8]
+            handoff = getattr(resp, "handoff_to_main", {}) or {}
+            for t in handoff.get("recommended_tests", []) or []:
+                _add_candidate(t, 0.6 * base_score, f"{dept}回传建议")
+
+            # 回传中若包含缺失关键指标，直接作为下一步补检项。
+            for ind in handoff.get("missing_indicators", []) or []:
+                _add_candidate(ind, 0.55 * base_score, f"{dept}关键指标缺失")
+
+            # 由命中指标反推同科室关键指标缺口。
+            hit_indicators = set(handoff.get("hit_indicators", []) or [])
+            focus_indicators = set(
+                ((getattr(resp, "task_assignment", {}) or {}).get("focus_indicators", []) or [])
+            )
+            for ind in (focus_indicators - hit_indicators):
+                _add_candidate(ind, 0.35 * base_score, f"{dept}未命中关键指标")
+
+        # 3) 临床先验作为轻量偏置（非固定疾病清单）。
+        if self.clinical_prior:
+            prior_tokens = re.findall(r"[a-z]{4,}|[\u4e00-\u9fff]{2,}", (self.clinical_prior or "").lower())
+            for token in prior_tokens[:3]:
+                _add_candidate(f"与“{token}”相关检查", 0.15, "临床先验补证")
+
+        # 4) 如果候选太少，兜底给通用复核项，避免空结果。
+        if len(candidate_scores) < 3:
+            for t in ["CRP", "PCT", "尿常规", "胸部X线", "网织红细胞计数"]:
+                _add_candidate(t, 0.1, "通用证据补全")
+
+        # 5) 按综合得分排序，返回前8项。
+        ranked = sorted(candidate_scores.items(), key=lambda x: x[1], reverse=True)
+        top_tests = [t for t, _ in ranked[:8]]
+        if top_tests:
+            self.logger.info(
+                "[REASONING][主Agent] 动态补检推荐: %s",
+                [
+                    {
+                        "test": t,
+                        "score": round(candidate_scores.get(t, 0.0), 3),
+                        "reason": "|".join(candidate_reasons.get(t, [])[:2]),
+                    }
+                    for t in top_tests
+                ],
+            )
+        return top_tests
 
     def _build_followup_questions(
         self,
@@ -618,14 +882,18 @@ class HierarchicalMedicalAgent:
     ) -> List[str]:
         """生成下一轮要向用户追问的问题（工具动作）。"""
         qs: List[str] = []
+        abnormal_bundle = self._compute_abnormal_bundle(lab_results or {})
 
-        if "WBC" in lab_results and self._is_abnormal_indicator("WBC", float(lab_results["WBC"])):
+        def _is_abn(indicator: str) -> bool:
+            return bool((abnormal_bundle.get(indicator) or {}).get("is_abnormal"))
+
+        if "WBC" in lab_results and _is_abn("WBC"):
             qs.append("近期是否有发热、咳嗽、咽痛或尿频尿痛等感染症状？")
 
-        if "Hb" in lab_results and self._is_abnormal_indicator("Hb", float(lab_results["Hb"])):
+        if "Hb" in lab_results and _is_abn("Hb"):
             qs.append("是否存在乏力、头晕、黑便或月经过多等失血相关症状？")
 
-        if "Cr" in lab_results and self._is_abnormal_indicator("Cr", float(lab_results["Cr"])):
+        if "Cr" in lab_results and _is_abn("Cr"):
             qs.append("近期是否出现尿量变化、下肢水肿、夜尿增多或肾病既往史？")
 
         if consensus and "感染" in (consensus.primary_diagnosis or ""):
@@ -760,12 +1028,16 @@ class HierarchicalMedicalAgent:
                 keyword = action.get("keyword", "")
                 if keyword:
                     try:
-                        snippet = query_medical_knowledge(keyword)
+                        snippet = query_medical_knowledge(keyword, scope="main")
                         observation["knowledge"].append({
                             "keyword": keyword,
                             "summary": (snippet or "")[:300],
                         })
-                        self.logger.info("[ACTION][主Agent] 主动检索知识库关键词: %s", keyword)
+                        self.logger.info(
+                            "[ACTION][主Agent] 主动检索知识库关键词: %s | summary_chars=%d",
+                            keyword,
+                            len(snippet or ""),
+                        )
                     except Exception as exc:
                         self.logger.warning("知识检索动作失败: %s", exc)
 
@@ -811,7 +1083,7 @@ class HierarchicalMedicalAgent:
     async def analyze_lab_results(
         self,
         lab_results: Dict[str, float],
-        max_rounds: int = 3,
+        max_rounds: int = 5,
         patient_profile: Optional[Dict[str, Any]] = None,
         clinical_prior: str = "",
     ) -> Dict:
@@ -832,6 +1104,14 @@ class HierarchicalMedicalAgent:
             self.logger.info("[THOUGHT][主Agent] 患者画像=%s", self.patient_profile)
         if self.clinical_prior:
             self.logger.info("[THOUGHT][主Agent] 临床先验诊断=%s", self.clinical_prior)
+
+        user_history_text = ""
+        try:
+            user_history_text = query_user_medical_history(self.user_id) or ""
+            if user_history_text:
+                self.logger.info("[THOUGHT][主Agent] 已预取病史摘要(前120字): %s", user_history_text[:120])
+        except Exception as exc:
+            self.logger.warning("病史查询失败（任务分配与共识降级）: %s", exc)
 
         data_quality_issues = self._detect_data_quality_issues(lab_results)
         if data_quality_issues:
@@ -866,8 +1146,15 @@ class HierarchicalMedicalAgent:
 
             self.logger.info(f"\n【分析开始】第 {round_no} 轮")
 
-            gat_confidence = self._compute_gat_confidence(reasoning_labs)
-            task_assignments = self._build_task_assignments(reasoning_labs, gat_confidence, round_no)
+            abnormal_bundle = self._compute_abnormal_bundle(reasoning_labs)
+            gat_confidence = self._compute_gat_confidence(reasoning_labs, abnormal_bundle)
+            task_assignments = self._build_task_assignments(
+                reasoning_labs,
+                gat_confidence,
+                round_no,
+                abnormal_bundle,
+                user_history_text,
+            )
 
             missing_tests = self._derive_missing_tests(reasoning_labs, all_responses)
             followup_questions = self._build_followup_questions(reasoning_labs, consensus)
@@ -1004,6 +1291,10 @@ class HierarchicalMedicalAgent:
         analysis_summary["data_quality_issues"] = data_quality_issues
         analysis_summary["quarantined_indicators"] = quarantined_indicators
         analysis_summary["reasoning_labs"] = reasoning_labs
+        analysis_summary["recommended_departments"] = (
+            (graph_guidance or {}).get("recommended_agents")
+            or analysis_summary.get("supporting_departments", [])
+        )
 
         self.session_state["analysis_results"].append(analysis_summary)
         self.logger.info(f"【分析完成】诊断：{consensus.primary_diagnosis}")

@@ -218,8 +218,8 @@ def _get_cache_key(self, query: str, model: str = "default") -> str:
     # 用 MD5 哈希查询文本（而非直接存储整个查询）
     # 避免 Redis key 过长和存储空间浪费
     query_hash = hashlib.md5(query.encode()).hexdigest()
-    return f"rag:{query_hash}:{model}"
-    # 结果：rag:a1b2c3d4e5f6:qwen3.5-plus-2026-02-15
+   return f"rag:{query_hash}:{model}"
+   # 结果：rag:a1b2c3d4e5f6:qwen3-vl-32b-thinking
 ```
 
 ### **关键逻辑 2️⃣：缓存检查**

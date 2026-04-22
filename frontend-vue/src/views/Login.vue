@@ -60,6 +60,18 @@
         </div>
 
         <div class="input-group">
+          <label>年龄</label>
+          <input
+            v-model.number="registerForm.age"
+            type="number"
+            min="0"
+            max="150"
+            placeholder="请输入年龄"
+            required
+          />
+        </div>
+
+        <div class="input-group">
           <label>密码</label>
           <input
             v-model="registerForm.password"
@@ -118,6 +130,7 @@ export default {
       registerForm: {
         realName: "",
         idNumber: "",
+        age: null,
         password: "",
         confirmPassword: "",
       },
@@ -147,6 +160,11 @@ export default {
         return;
       }
 
+      if (this.registerForm.age === null || this.registerForm.age === "") {
+        this.errorMessage = "年龄不能为空";
+        return;
+      }
+
       this.isLoading = true;
 
       try {
@@ -167,6 +185,7 @@ export default {
       this.registerForm = {
         realName: "",
         idNumber: "",
+        age: null,
         password: "",
         confirmPassword: "",
       };

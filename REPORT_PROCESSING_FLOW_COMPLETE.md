@@ -56,10 +56,10 @@ MedicalFacadeService.handleUploadAndAppend()
 Python OCR Service (端口 8001)
   │
   ├─ 接收请求：POST /api/v1/analyze-vision
-  │  └─ 请求体：{filePath: "http://...", modelName: "qwen-vl-plus"}
+  │  └─ 请求体：{filePath: "http://...", modelName: "qwen3-vl-32b-thinking"}
   │
   ├─ 调用视觉模型进行图像识别
-  │  ├─ 默认模型：qwen-vl-plus (通义千问视觉)
+  │  ├─ 默认模型：qwen3-vl-32b-thinking
   │  ├─ 备选模型：gpt-4o (OpenAI)
   │  └─ 备选模型：claude-3-sonnet (Anthropic)
   │
@@ -78,7 +78,7 @@ Python OCR Service (端口 8001)
   ├─ 返回响应
   │  ├─ cached: true/false (是否来自缓存)
   │  ├─ analysis: [...] (识别结果数组)
-  │  └─ model_used: "qwen-vl-plus"
+  │  └─ model_used: "qwen3-vl-32b-thinking"
   │
   └─ 将结果存入 Redis 缓存（可选）
      └─ Key: ocr:{file_hash}:{model}

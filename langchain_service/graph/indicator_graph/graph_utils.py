@@ -65,6 +65,18 @@ class GraphLoader:
             
             # 构建 NetworkX 图
             G = nx.DiGraph()
+            
+            # 首先显式添加所有标准指标作为孤立节点
+            # 这确保即使没有关系定义的指标也能被包括在图中
+            try:
+                from core.agent_streaming import _GRAPH_INDICATOR_ALIAS
+                for indicator_code in _GRAPH_INDICATOR_ALIAS.values():
+                    if indicator_code not in G:
+                        G.add_node(indicator_code)
+                logger.info(f"Added {len(_GRAPH_INDICATOR_ALIAS)} standard indicators as base nodes")
+            except ImportError:
+                logger.warning("Could not import _GRAPH_INDICATOR_ALIAS, skipping pre-population")
+            
             for source, target, rel_type, weight, desc in edges:
                 G.add_edge(
                     source,

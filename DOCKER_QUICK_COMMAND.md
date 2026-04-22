@@ -119,8 +119,8 @@ curl -X POST http://localhost:8080/api/v1/chat \
 
 ```bash
 # LLM 模型选择
-DASHSCOPE_MODEL=qwen3.5-plus-2026-02-15
-VISION_MODEL=qwen-vl-plus
+DASHSCOPE_MODEL=qwen3-vl-32b-thinking
+VISION_MODEL=qwen3-vl-32b-thinking
 
 # API 密钥
 DASHSCOPE_API_KEY=your_key_here

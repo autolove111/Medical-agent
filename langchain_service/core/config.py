@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     DASHSCOPE_API_KEY: str = ""
-    DASHSCOPE_MODEL: str = "qwen-vl-plus-2025-05-07"
+    DASHSCOPE_MODEL: str = "qwen3-vl-32b-thinking"
     DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     USE_MOCK_LLM: bool = False  # 如果设为 True，使用 Mock LLM 而不真实调用 API
 
@@ -16,8 +16,8 @@ class Settings(BaseSettings):
 
     VECTOR_DB_TYPE: str = "faiss"
     VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", 
-                                    "/app/vector_db" if os.getenv("DOCKER_ENV") == "true" 
-                                    else os.path.join(os.path.dirname(os.path.abspath(__file__)), "vector_db"))
+                                    "/app/knowledge/vector_db" if os.getenv("DOCKER_ENV") == "true" 
+                                    else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "knowledge", "vector_db"))
 
     # ========== Redis 缓存配置 (RAG 知识库缓�? ==========
     REDIS_HOST: str = os.getenv("REDIS_HOST", 

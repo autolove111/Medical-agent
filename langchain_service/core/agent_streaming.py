@@ -35,38 +35,127 @@ _streaming_llm = None
 # 正则：匹配元数据
 META_PATTERN = re.compile(r"\[META\|([^\]]+)\]")
 
-SYSTEM_PROMPT = """你是专业的医学检验智能助手 MedLabAgent。
-请遵循以下规则：
-1. 给出专业、谨慎、结构化的医学分析与建议。
-1.1 回答第一行必须先给出“主诊断结论”，格式：主诊断：xxx（置信度：xx%）。
-2. 优先结合知识库检索结果和用户病史信息回答。
-3. 如涉及诊断或治疗建议，必须提醒“以上建议仅供参考，请以临床医生诊断为准”。
-4. 如果信息不足，要明确说明不确定性，不要臆断。
-5. 回答最后必须追加一行元数据，格式固定为：[META|医疗:是或否|疾病:疾病名称或无|过敏:药物名称或无]
-"""
+SYSTEM_PROMPT = """# Role
+你是一款基于双路图注意力机制 (Dual-GAT) 增强的医学检验智能体 —— MedLabAgent。
+你拥有专业的循证医学知识，并严格遵循 ReAct (Reasoning and Acting) 框架进行逻辑推导和工具调用。
+
+# Context (System Inputs)
+【患者档案】: {patient_info}
+【化验异常清单】: {abnormal_labs}
+
+🧠 【GAT-1 疾病候选预测】 (先验概率参考): 
+{gat_disease_priors}
+
+🛠️ 【GAT-2 动作路由预测】 (工具调用参考): 
+{gat_tool_priors}
+
+# Execution Rules
+请严格遵循以下规则执行诊断与回复：
+<rule_1: First_Line_Diagnosis>
+最终交付给用户的回答，第一行必须严格按照以下格式：
+主诊断：[疾病名称] 次诊断：[疾病名称]（置信度：[0-100]%）
+</rule_1>
+
+<rule_2: Priority_and_Caution>
+1. 优先验证 GAT-1 提供的高置信度疾病候选，切勿盲目发散。
+2. 遇到疑难点时，优先调用 GAT-2 推荐的科室工具 ({tool_names})。
+3. 回复末尾必须包含免责声明：“⚠️ 以上建议由 AI 基于检验数据生成，仅供临床参考，请以执业医师最终诊断为准。”
+</rule_2>
+
+<rule_3: Metadata_Output>
+1. 要列举出数据对诊断进行讲解，但不能过度解读或夸大数据的意义。
+2. 回答的最后一行必须严格输出状态元数据（不要有任何多余字符，注意小写和布尔值）：
+[META|medical:true/false|disease:string/None|allergy:string/None]
+</rule_3>
+
+# Available Tools
+你可以使用以下工具：
+{tools}
+
+# ReAct Format Instructions
+你必须按照以下格式进行思考和行动：
+Question: 需要解答的医学检验问题或用户的输入。
+Thought: 思考你需要做什么。分析当前的异常指标，结合 GAT-1 的预测，决定是否需要调用工具。
+Action: 必须是 [{tool_names}] 中的一个。参考 GAT-2 的推荐。
+Action Input: 工具的输入参数。
+Observation: 工具返回的结果。
+... (Thought/Action/Action Input/Observation 可以重复多次)
+Thought: 我现在已经掌握了足够的信息，可以给出最终的结构化诊断报告。
+Final Answer: 最终给用户的专业回复（必须满足第一行诊断、免责声明和最后一行 META 的要求）。
+
+# Begin!
+Question: {input}
+Thought: {agent_scratchpad}"""
 
 
 _GRAPH_INDICATOR_ALIAS = {
+    # ========== 血细胞计数 ==========
     "wbc": "WBC",
     "rbc": "RBC",
-    "plt": "PLT",
     "hemoglobin": "Hb",
     "hematocrit": "HCT",
     "mcv": "MCV",
     "mch": "MCH",
     "mchc": "MCHC",
-    "creatinine": "Cr",
+    "plt": "PLT",
+    # ========== 白细胞分类 ==========
+    "ne": "NE",
+    "ly": "LY",
+    "mo": "MO",
+    "eo": "EO",
+    "ba": "BA",
+    # ========== 红细胞分类 ==========
+    "nrbc": "NRBC",
+    "rdw": "RDW",
+    # ========== 血小板相关 ==========
+    "mpv": "MPV",
+    "pct": "PCT",
+    "pdw": "PDW",
+    # ========== 生化指标：代谢 ==========
+    "glucose": "GLU",
     "bun": "BUN",
+    "creatinine": "Cr",
+    "uric_acid": "UA",
+    # ========== 生化指标：肝功能 ==========
+    "alt": "ALT",
+    "ast": "AST",
+    "alp": "ALP",
+    "ggt": "GGT",
+    "total_bilirubin": "TBIL",
+    "direct_bilirubin": "DBIL",
+    # ========== 生化指标：电解质 ==========
+    "sodium": "Na",
+    "potassium": "K",
+    "chloride": "Cl",
+    "calcium": "Ca",
+    "phosphorus": "P",
+    "magnesium": "Mg",
+    # ========== 生化指标：脂质 ==========
+    "cholesterol": "CHO",
+    "triglyceride": "TG",
+    # ========== 蛋白质代谢 ==========
+    "total_protein": "TP",
+    "albumin": "ALB",
+    "globulin": "GLO",
+    "a_g_ratio": "A/G",
+    # ========== 胆汁和肝脏 ==========
+    "total_bile_acid": "TBA",
+    "cholinesterase": "CHE",
+    # ========== 心肌酶 ==========
+    "creatine_kinase": "CK",
+    "ldh": "LDH",
+    "a_hbd": "α-HBD",
+    # ========== 肾功能扩展 ==========
+    "urea": "UREA",
+    "cystatin_c": "CysC",
+    # ========== 酸碱平衡 ==========
+    "co2": "CO2",
+    # ========== 原有的保留项（保持兼容） ==========
     "egfr": "eGFR",
-    "phosphorus": "PO4",
     "p": "PO4",
     "tbil": "TBIL",
     "dbil": "DBIL",
-    "uric_acid": "UA",
-    "glucose": "GLU",
     "hba1c": "HbA1c",
-    "alt": "ALT",
-    "ast": "AST",
 }
 
 
@@ -79,7 +168,7 @@ def _normalize_labs_for_graph(lab_results: Dict[str, float]) -> Dict[str, float]
     return normalized
 
 
-def _run_graph_inference_iterative(lab_results: Dict[str, float], max_iters: int = 2) -> str:
+def _run_graph_inference_iterative(lab_results: Dict[str, float], max_iters: int = 6) -> str:
     """两轮图推理：首轮全量指标，次轮基于关键指标聚焦，模拟 ReAct 迭代更新。"""
     if not lab_results:
         return ""
@@ -315,7 +404,7 @@ class MedicalAgent:
             try:
                 logger.info("结构化检验值详情: %s", dict(sorted(lab_results.items())))
                 logger.info("进入第六步：使用 GAT 图推理分析 %d 个检验指标", len(lab_results))
-                graph_prompt_injection = _run_graph_inference_iterative(lab_results=lab_results, max_iters=2)
+                graph_prompt_injection = _run_graph_inference_iterative(lab_results=lab_results)
                 if graph_prompt_injection:
                     logger.info("GAT 图推理完成（两轮迭代），已获取 prompt_injection")
             except Exception as e:
@@ -370,7 +459,7 @@ class MedicalAgent:
         except RuntimeError:
             return asyncio.run(coro)
 
-    def _run_hierarchical_react_loop(self, query: str, lab_results: Dict[str, float], max_rounds: int = 3) -> str:
+    def _run_hierarchical_react_loop(self, query: str, lab_results: Dict[str, float], max_rounds: int = 5) -> str:
         """主Agent多轮 ReAct 协作：思考(选路)→行动(并联科室Agent)→观察(冲突/置信度)→迭代。"""
         try:
             from task.hierarchical_main_agent import HierarchicalMedicalAgent

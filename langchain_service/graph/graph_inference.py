@@ -13,16 +13,16 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import create_engine
 import os
 
-from .graph_utils import GraphLoader
+from .indicator_graph.graph_utils import GraphLoader
 
 try:
-    from experimental.indicator_gat import IndicatorGAT
+    from graph.indicator_graph.indicator_gat import IndicatorGAT
 except ImportError as e:
     logging.warning(f"IndicatorGAT not found: {e}")
     IndicatorGAT = None
 
 try:
-    from experimental.expert_gat import ExpertGAT
+    from graph.department_agent_graph.expert_gat import ExpertGAT
 except ImportError as e:
     logging.warning(f"ExpertGAT not found: {e}")
     ExpertGAT = None
@@ -38,6 +38,13 @@ _indicator_gat = None
 _expert_gat = None
 
 
+# ============================================
+# 图模型初始化
+# 作用：在应用启动时从数据库加载图结构，创建 IndicatorGAT 和 ExpertGAT 对象
+# 执行步骤：创建数据库引擎 → GraphLoader → 指标图 → ExpertGAT 映射 → 专家图
+# 特性：延迟初始化，容错机制（某个 GAT 失败不影响整体）
+# 返回值：True 成功，False 失败
+# ============================================
 def init_graph_models():
     """初始化图模型（在应用启动时调用）"""
     global _graph_loader, _indicator_gat, _expert_gat
@@ -78,6 +85,14 @@ def init_graph_models():
     return True
 
 
+# ============================================
+# 获取或懒加载图模型
+# 作用：访问全局的 IndicatorGAT 和 ExpertGAT 对象，如果未初始化则触发初始化
+# 机制：单例模式 + 延迟加载（只初始化一次）
+# 调用时机：API 请求到达时，从这里获取已加载的推理模型
+# 返回值：元组 (indicator_gat, expert_gat)
+# 异常处理：如果初始化失败，抛出 RuntimeError
+# ============================================
 def get_graph_models():
     """获取或懒加载图模型"""
     global _graph_loader, _indicator_gat, _expert_gat
@@ -136,6 +151,19 @@ class GraphDebugResult(BaseModel):
 # API 端点
 # ============================================
 
+# ============================================
+# 双图推理完整管道（核心 API 端点）
+# 作用：整合 IndicatorGAT + ExpertGAT 的完整推理流程
+# 输入：患者化验值 (patient_labs = {指标名: 数值})
+# 核心步骤：
+#   Step 1: IndicatorGAT 分析化验值 → 计算异常分数 + 图消息传递 + 识别关键指标簇
+#   Step 2: 降级处理 → 如果没识别出簇，用粗粒度的"异常分数>阈值"方法
+#   Step 3: ExpertGAT 推理 → 根据关键指标推荐诊疗路径和 Agent
+#   Step 4: 生成 Prompt Injection → 将图谱结果格式化为 LLM 可用的约束文本
+#   Step 5: 计算复杂度评分 → 用于后续多轮对话决策
+# 输出：DoubleGraphResult (包含指标簇 + 专家推荐 + Prompt 约束 + 复杂度评分)
+# 日志：每个步骤都有 emoji 标记便于追踪执行流程
+# ============================================
 @router.post("/graph-inference")
 async def run_double_graph_inference(request: GraphInferenceRequest) -> DoubleGraphResult:
     """
@@ -225,6 +253,17 @@ async def run_double_graph_inference(request: GraphInferenceRequest) -> DoubleGr
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================
+# 双图推理调试端点（开发/问题诊断用）
+# 作用：返回推理过程中的所有中间结果原始值，用于调试和问题诊断
+# 区别于 run_double_graph_inference：不进行后处理、不计算复杂度、直接返回原始结果
+# 输入：同上（patient_labs）
+# 输出原始结果：
+#   indicator_result：IndicatorGAT 完整输出（包含 abnormality_scores、weights、clusters）
+#   expert_result：ExpertGAT 完整输出（所有中间计算值）
+#   prompt_injection：Prompt 约束文本
+# 用途：开发者验证图结构是否正确、检查中间计算是否符合预期
+# ============================================
 @router.post("/graph-debug")
 async def debug_graph_inference(request: GraphInferenceRequest) -> GraphDebugResult:
     """
@@ -270,6 +309,23 @@ async def debug_graph_inference(request: GraphInferenceRequest) -> GraphDebugRes
 # 辅助函数
 # ============================================
 
+# ============================================
+# 生成 Prompt Injection 约束文本
+# 作用：将图推理的复杂计算结果转化为自然语言，注入到 LLM 系统提示词中
+# 工作原理：
+#   1. 从 indicator_result 中提取权重最高的指标（Top 5）
+#   2. 格式化为 "关键指标簇：wbc(0.95), rbc(0.92), ..." 
+#   3. 从 expert_result 中提取推荐的诊疗路径 "Agent1 → Agent2 → Agent3"
+#   4. 添加协作备注说明不同科室需要关注的事项
+# 约束文本示例：
+#   [系统约束 - 基于医学图谱分析]
+#   关键指标簇：wbc(0.95), rbc(0.92), ne(0.88), ...
+#   建议诊疗路径：Hematology → Nephrology → Endocrinology
+#     • 关注红细胞形态
+#     • 评估肾脏功能
+#   [end system constraints]
+# 注入机制：这段文本会被添加到 LLM 的 messages 中，强制 LLM 遵循医学图谱的逻辑
+# ============================================
 def _generate_prompt_injection(
     key_indicators: List[str],
     indicator_result: Dict,
@@ -319,6 +375,18 @@ def _generate_prompt_injection(
 # 应用启动钩子
 # ============================================
 
+# ============================================
+# 应用启动钩子和路由注册
+# 作用：将图推理路由注册到 FastAPI 应用，并在启动时初始化所有 GAT 模型
+# 执行流程：
+#   1. include_router(router) → 将 /api/v1/graph-inference 和 /api/v1/graph-debug 加入应用
+#   2. @app.on_event("startup") → 应用启动时执行 init_graph_models()
+# 调用时机：在 FastAPI 应用初始化阶段调用此函数
+# 使用示例：
+#   from graph.graph_inference import register_graph_routes
+#   app = FastAPI()
+#   register_graph_routes(app)  # 在 app.run() 前调用
+# ============================================
 def register_graph_routes(app):
     """
     将图推理路由注册到 FastAPI 应用

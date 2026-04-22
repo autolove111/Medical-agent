@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -16,6 +15,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict
 from core.agent_streaming import create_medical_agent
 from core.config import settings
+from lab_data_standardization.lab_normalization import extract_lab_results
 
 # 配置 LangSmith/LangChain 追踪（默认关闭，避免无 key 时刷 401）
 _tracing_enabled = bool(settings.LANGCHAIN_TRACING_V2 and settings.LANGSMITH_API_KEY)
@@ -35,148 +35,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-_INDICATOR_ALIAS = {
-    "肌酐": "Cr",
-    "尿素氮": "BUN",
-    "尿酸": "UA",
-    "葡萄糖": "GLU",
-    "白细胞": "WBC",
-    "红细胞": "RBC",
-    "血红蛋白": "HB",
-    "羟丁酸脱氢酶": "HBDH",
-    "α-羟丁酸脱氢酶": "HBDH",
-    "a-羟丁酸脱氢酶": "HBDH",
-    "hbdh": "HBDH",
-    "血小板": "PLT",
-    "丙氨酸氨基转移酶": "ALT",
-    "天门冬氨酸氨基转移酶": "AST",
-}
-
-
-def _extract_numeric_value(raw_value) -> Optional[float]:
-    if raw_value is None:
-        return None
-    if isinstance(raw_value, (int, float)):
-        return float(raw_value)
-    if not isinstance(raw_value, str):
-        return None
-
-    match = re.search(r"-?\d+(?:\.\d+)?", raw_value)
-    if not match:
-        return None
-    try:
-        return float(match.group(0))
-    except (TypeError, ValueError):
-        return None
-
-
-def _normalize_indicator_key(raw_name: str) -> Optional[str]:
-    if not raw_name:
-        return None
-
-    alias = _INDICATOR_ALIAS.get(raw_name.strip())
-    if alias:
-        return alias
-
-    lowered = raw_name.lower()
-    # 避免把 HBDH 误归为 HB
-    if "hbdh" in lowered or "羟丁酸脱氢酶" in raw_name:
-        return "HBDH"
-
-    # 识别如 "肌酐(Cr)" 这类格式，优先提取括号中的英文缩写
-    bracket_match = re.search(r"\(([A-Za-z]{2,8})\)", raw_name)
-    if bracket_match:
-        return bracket_match.group(1).upper()
-
-    ascii_key = re.sub(r"[^A-Za-z0-9]", "", raw_name).upper()
-    if 2 <= len(ascii_key) <= 8:
-        return ascii_key
-    return None
-
-
-def _is_plausible_lab_value(indicator: str, value: float) -> bool:
-    """基础生理合理性校验，拦截明显 OCR 误识别值。"""
-    plausible_ranges = {
-        "HB": (40, 250),
-        "HGB": (40, 250),
-        "WBC": (0.1, 100),
-        "PLT": (1, 1500),
-        "Cr": (5, 2000),
-        "BUN": (0.5, 80),
-        "TBIL": (0, 500),
-        "DBIL": (0, 300),
-        "GLU": (1, 50),
-    }
-    rr = plausible_ranges.get(indicator)
-    if not rr:
-        return True
-    low, high = rr
-    return low <= value <= high
-
-
-def _extract_lab_results(ocr_result: Optional[Dict]) -> Dict[str, float]:
-    if not ocr_result:
-        return {}
-
-    gat_structured = ocr_result.get("gat_structured")
-    if isinstance(gat_structured, dict):
-        patient_labs = gat_structured.get("patient_labs")
-        if isinstance(patient_labs, dict):
-            normalized: Dict[str, float] = {}
-            for raw_key, raw_value in patient_labs.items():
-                value = _extract_numeric_value(raw_value)
-                if value is None:
-                    continue
-                key = _normalize_indicator_key(str(raw_key)) or str(raw_key).strip()
-                if not _is_plausible_lab_value(key, value):
-                    logger.warning("忽略不合理指标值（gat_structured）: %s=%s", key, value)
-                    continue
-                normalized[key] = value
-            if normalized:
-                return normalized
-
-    direct_results = ocr_result.get("lab_results")
-    if isinstance(direct_results, dict):
-        normalized: Dict[str, float] = {}
-        for raw_key, raw_value in direct_results.items():
-            value = _extract_numeric_value(raw_value)
-            if value is None:
-                continue
-            key = _normalize_indicator_key(str(raw_key)) or str(raw_key).strip()
-            if not _is_plausible_lab_value(key, value):
-                logger.warning("忽略不合理指标值（lab_results）: %s=%s", key, value)
-                continue
-            normalized[key] = value
-        return normalized
-
-    analysis_items = ocr_result.get("analysis")
-    if not isinstance(analysis_items, list):
-        return {}
-
-    results: Dict[str, float] = {}
-    for item in analysis_items:
-        if not isinstance(item, dict):
-            continue
-
-        raw_name = str(
-            item.get("indicator")
-            or item.get("item")
-            or item.get("name")
-            or item.get("test_name")
-            or ""
-        ).strip()
-        value = _extract_numeric_value(item.get("value") or item.get("result"))
-        if not raw_name or value is None:
-            continue
-
-        key = _normalize_indicator_key(raw_name) or raw_name
-        if not _is_plausible_lab_value(key, value):
-            logger.warning("忽略不合理指标值（analysis）: %s=%s", key, value)
-            continue
-        results[key] = value
-
-    return results
 
 app = FastAPI(
     title="MedLabAgent LangChain 服务",

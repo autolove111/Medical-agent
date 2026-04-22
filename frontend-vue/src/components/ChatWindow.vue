@@ -6,7 +6,9 @@
       </div>
       <div class="header-right">
         <div v-if="currentUser" class="user-info">
-          <span>👤 {{ currentUser.realName }}</span>
+          <button class="user-name-btn" @click="openProfile">
+            👤 {{ currentUser.realName }}
+          </button>
           <button @click="handleLogout" class="logout-btn">登出</button>
         </div>
       </div>
@@ -117,6 +119,36 @@
         </div>
       </div>
     </div>
+
+    <!-- 用户信息弹窗（查看/编辑） -->
+    <div v-if="showProfileDialog" class="dialog-overlay">
+      <div class="dialog-box">
+        <h3>👤 个人信息</h3>
+        <div class="dialog-field">
+          <label>姓名：</label>
+          <input v-model="profileForm.realName" type="text" />
+        </div>
+        <div class="dialog-field">
+          <label>年龄：</label>
+          <input v-model.number="profileForm.age" type="number" min="0" />
+        </div>
+        <div class="dialog-field">
+          <label>药物过敏：</label>
+          <input v-model="profileForm.drugAllergy" type="text" />
+        </div>
+        <div class="dialog-field">
+          <label>病史：</label>
+          <textarea
+            v-model="profileForm.lifetimeMedicalHistory"
+            rows="4"
+          ></textarea>
+        </div>
+        <div class="dialog-actions">
+          <button @click="saveProfile" class="confirm-btn">保存</button>
+          <button @click="closeProfile" class="reject-btn">取消</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -145,6 +177,13 @@ export default {
     const showMedicalDialog = ref(false);
     const currentSaveMsg = ref(null);
     const medicalForm = ref({ disease: "", status: "未康复" });
+    const showProfileDialog = ref(false);
+    const profileForm = ref({
+      realName: "",
+      age: null,
+      drugAllergy: "",
+      lifetimeMedicalHistory: "",
+    });
 
     const messages = computed(() => chatStore.messages);
     const currentUser = computed(() => authStore.user);
@@ -163,7 +202,7 @@ export default {
       const token = localStorage.getItem("token");
       if (token) {
         navigator.sendBeacon(
-          "/api/v1/auth/logout?token=" + encodeURIComponent(token),
+          "/v1/auth/logout?token=" + encodeURIComponent(token),
         );
       }
     }
@@ -219,7 +258,6 @@ export default {
         timestamp: new Date(),
       });
       scrollToBottom();
-
 
       try {
         // 3. 调用流式接口
@@ -301,6 +339,108 @@ export default {
       router.push("/login");
     }
 
+    async function openProfile() {
+      showProfileDialog.value = true;
+      try {
+        const resp = await ApiService.get("/v1/user/profile");
+        const data = resp.data || resp;
+        // support both {status,data:{...}} and direct data
+        const profile = data.data || data;
+        profileForm.value.realName =
+          profile.realName || (authStore.user && authStore.user.realName) || "";
+        profileForm.value.age =
+          profile.age || (authStore.user && authStore.user.age) || null;
+        profileForm.value.drugAllergy = profile.drugAllergy || "";
+        profileForm.value.lifetimeMedicalHistory =
+          profile.lifetimeMedicalHistory || "";
+      } catch (err) {
+        // 如果后端未实现 profile 接口，则回退到本地存储的用户信息
+        profileForm.value.realName = authStore.user
+          ? authStore.user.realName
+          : "";
+        profileForm.value.age = authStore.user ? authStore.user.age : null;
+        // 尝试获取病史
+        try {
+          const mh = await ApiService.get("/v1/user/medical-history");
+          const mdata = mh.data || mh;
+          profileForm.value.lifetimeMedicalHistory = mdata.medicalHistory || "";
+        } catch (e) {
+          profileForm.value.lifetimeMedicalHistory = "";
+        }
+      }
+    }
+
+    function closeProfile() {
+      showProfileDialog.value = false;
+    }
+
+    async function saveProfile() {
+      try {
+        // 优先调用统一 profile 接口
+        const resp = await ApiService.put("/v1/user/profile", {
+          realName: profileForm.value.realName,
+          age: profileForm.value.age,
+          drugAllergy: profileForm.value.drugAllergy,
+          lifetimeMedicalHistory: profileForm.value.lifetimeMedicalHistory,
+        });
+        // 记录响应并更新前端状态
+        console.log("update profile resp:", resp);
+        authStore.updateUserInfo({
+          realName: profileForm.value.realName,
+          age: profileForm.value.age,
+          drugAllergy: profileForm.value.drugAllergy,
+          lifetimeMedicalHistory: profileForm.value.lifetimeMedicalHistory,
+        });
+        showProfileDialog.value = false;
+      } catch (err) {
+        console.error("saveProfile error:", err);
+        // 回退策略：先尝试用 POST /v1/user/profile（后端同时接受 PUT/POST），再退到单独的过敏/病史接口
+        try {
+          const postResp = await ApiService.post("/v1/user/profile", {
+            realName: profileForm.value.realName,
+            age: profileForm.value.age,
+            drugAllergy: profileForm.value.drugAllergy,
+            lifetimeMedicalHistory: profileForm.value.lifetimeMedicalHistory,
+          });
+          console.log("post profile resp:", postResp);
+          authStore.updateUserInfo({
+            realName: profileForm.value.realName,
+            age: profileForm.value.age,
+            drugAllergy: profileForm.value.drugAllergy,
+            lifetimeMedicalHistory: profileForm.value.lifetimeMedicalHistory,
+          });
+          showProfileDialog.value = false;
+        } catch (e2) {
+          console.error("post fallback failed:", e2);
+          // 最后再尝试兼容接口（逐项更新）
+          try {
+            if (profileForm.value.drugAllergy) {
+              await ApiService.updateDrugAllergy(profileForm.value.drugAllergy);
+            }
+            if (profileForm.value.lifetimeMedicalHistory) {
+              await ApiService.appendMedicalHistory(
+                profileForm.value.lifetimeMedicalHistory,
+                "已就诊",
+              );
+            }
+            authStore.updateUserInfo({
+              realName: profileForm.value.realName,
+              age: profileForm.value.age,
+            });
+            showProfileDialog.value = false;
+          } catch (e) {
+            console.error("fallback save error:", e);
+            let msg = "保存用户信息失败";
+            if (e && e.message) msg = msg + ": " + e.message;
+            else if (e && typeof e === "string") msg = msg + ": " + e;
+            else if (e && e.error)
+              msg = msg + ": " + (e.error.message || JSON.stringify(e.error));
+            error.value = msg;
+          }
+        }
+      }
+    }
+
     function showSaveDialog(msg) {
       currentSaveMsg.value = msg;
       medicalForm.value = {
@@ -353,10 +493,15 @@ export default {
       currentUser,
       showMedicalDialog,
       medicalForm,
+      showProfileDialog,
+      profileForm,
       sendMessage,
       uploadFile,
       handleFileUpload,
       handleLogout,
+      openProfile,
+      closeProfile,
+      saveProfile,
       showSaveDialog,
       confirmSave,
       cancelSave,
@@ -408,6 +553,31 @@ export default {
   font-size: 14px;
 }
 
+.user-name-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+.user-name-btn:hover {
+  text-decoration: underline;
+}
+.user-name-btn {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+.user-name-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
 .logout-btn {
   padding: 8px 16px;
   background: rgba(255, 255, 255, 0.2);

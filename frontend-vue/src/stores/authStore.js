@@ -94,6 +94,7 @@ export const useAuthStore = defineStore("auth", {
         const response = await ApiService.post("/v1/auth/register", {
           realName: userData.realName,
           idNumber: userData.idNumber,
+          age: Number(userData.age),
           password: userData.password,
           confirmPassword: userData.confirmPassword,
         });
