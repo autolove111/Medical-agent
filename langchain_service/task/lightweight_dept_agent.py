@@ -31,6 +31,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from core.config import settings
 from .dept_agent_response import DepartmentAgentResponse, DiagnosisEntry, WeightFeedback
+from .prompt_templates import build_department_analysis_prompts
 from knowledge.reference_ranges import get_reference_range
 from knowledge.tools import query_medical_knowledge, query_user_medical_history, set_current_user_id
 
@@ -305,58 +306,19 @@ class LightweightDepartmentAgent(ABC):
                     f"置信度={float(p.get('confidence', 0.0) or 0.0):.2f}, 命中指标={p.get('hit_indicators', [])}"
                 )
 
-            system_prompt = f"""你是{self.department_name}的资深专科医生，请进行自主推理并给出结构化结论。
-
-要求：
-1) 必须逐项依据“值 vs 参考范围”判断方向：高于上限/低于下限/正常。
-2) 临床解释必须与方向一致：
-    - 例如 Cr/CysC 在多数场景下“升高”才支持肾清除功能下降；若为“低于下限”，不得直接作为肾功能不全正证据。
-    - K 仅在超出范围时才可讨论高钾或低钾风险；范围内不得渲染急性风险。
-3) 任何诊断若与核心指标方向矛盾，必须降置信度并在解释中明确写出“证据矛盾”。
-4) 缺失检测项目只能作为“证据不足”，不能当作阳性证据。
-2) 综合病史、临床先验、同侪意见与知识库信息。
-3) 证据不足时明确指出缺口并给出补检项，不要跨科下确定性结论。
-4) 仅输出JSON，不要输出额外说明文本。
-
-JSON结构：
-{{
-  "primary_diagnosis": "主诊断名称",
-  "confidence": 0.0,
-  "differential_diagnoses": [{{"diagnosis": "...", "confidence": 0.0}}],
-  "clinical_interpretation": "详细推理过程",
-  "recommended_tests": ["检查1", "检查2"],
-  "recommended_departments": ["科室1"],
-  "missing_indicators": ["指标1", "指标2"]
-}}"""
-
-            user_prompt = f"""请分析以下信息并输出JSON：
-
-【本科室关键指标及异常程度】
-{chr(10).join(indicator_details)}
-
-【患者画像】
-- 年龄: {age}
-- 性别: {gender}
-- 儿科患者: {is_pediatric}
-
-【临床先验】
-{clinical_prior or '无'}
-
-【主Agent任务目标】
-{task_assignment.get('task_goal', '围绕该患者最可能患什么病进行专科判断')}
-
-【病史摘要】
-{user_history or '无'}
-
-【同侪观察】
-{chr(10).join(peer_lines) if peer_lines else '无'}
-
-【相关医学文献】
-{knowledge_summary or '无'}
-
-【GAT置信度】
-{gat_confidence:.2f}
-"""
+            system_prompt, user_prompt = build_department_analysis_prompts(
+                department_name=self.department_name,
+                indicator_details=indicator_details,
+                age=age,
+                gender=gender,
+                is_pediatric=is_pediatric,
+                clinical_prior=clinical_prior,
+                task_goal=task_assignment.get('task_goal', '围绕该患者最可能患什么病进行专科判断'),
+                user_history=user_history,
+                peer_lines=peer_lines,
+                knowledge_summary=knowledge_summary,
+                gat_confidence=gat_confidence,
+            )
             
             messages = [
                 SystemMessage(content=system_prompt),

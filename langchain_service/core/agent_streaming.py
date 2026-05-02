@@ -10,6 +10,10 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from core.config import settings
+from core.prompt_templates import (
+    SYSTEM_PROMPT as SHARED_SYSTEM_PROMPT,
+    build_medical_analysis_user_prompt,
+)
 
 # 确保导入路径正确，使用绝对路径
 try:
@@ -417,22 +421,19 @@ class MedicalAgent:
         # 因为现在始终调用 OCR，所以必然有文本或失败提示
         user_id_info = self.user_id or "anonymous"
 
-        # 核心提示词模板（包含 GAT 图推理注入、OCR 结果、结构化检验值）
-        graph_section = f"\n【GAT 图推理指导】\n{graph_prompt_injection}" if graph_prompt_injection else ""
-        react_section = f"\n【ReAct 多轮协作轨迹】\n{react_trace_section}" if react_trace_section else ""
-        prompt = f"""当前用户ID：{user_id_info}
-【化验单 OCR 识别结果】：\n{ocr_section}
-【知识库检索结果】：{rag_result or "无相关知识库结果"}
-【用户病史与过敏信息】：{history_text or "无用户档案"}
-    【结构化检验值】\n{lab_results_text}{graph_section}{react_section}
-【用户问题】：{query_for_model}
-
-请结合以上信息，给出结构化医学分析。建议包含关键指标判断、原因分析、风险关注及建议。
-回答第一行必须是“主诊断：xxx（置信度：xx%）”，再展开详细分析。
-最后单独输出一行 META 标记。"""
+        prompt = build_medical_analysis_user_prompt(
+            user_id_info=user_id_info,
+            ocr_section=ocr_section,
+            rag_result=rag_result,
+            history_text=history_text,
+            lab_results_text=lab_results_text,
+            graph_prompt_injection=graph_prompt_injection,
+            react_trace_section=react_trace_section,
+            query_for_model=query_for_model,
+        )
 
         messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
+            SystemMessage(content=SHARED_SYSTEM_PROMPT),
             HumanMessage(content=prompt),
         ]
         return messages, sources, {
