@@ -463,7 +463,7 @@ class MedicalAgent:
     def _run_hierarchical_react_loop(self, query: str, lab_results: Dict[str, float], max_rounds: int = 5) -> str:
         """主Agent多轮 ReAct 协作：思考(选路)→行动(并联科室Agent)→观察(冲突/置信度)→迭代。"""
         try:
-            from task.hierarchical_main_agent import HierarchicalMedicalAgent
+            from agents.hierarchical_main_agent import HierarchicalMedicalAgent
 
             h_agent = HierarchicalMedicalAgent(user_id=self.user_id)
             patient_profile = self._extract_patient_profile(query)

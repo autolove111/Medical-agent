@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 100
 
+    # ========== RAG 本地 Embedding 配置 ==========
+    RAG_USE_LOCAL_EMBEDDING: bool = os.getenv("RAG_USE_LOCAL_EMBEDDING", "false").lower() == "true"
+    RAG_EMBEDDING_MODEL: str = os.getenv("RAG_EMBEDDING_MODEL", "Qwen/gte-Qwen2-1.5B-instruct")
+    RAG_LOCAL_EMBEDDING_PATH: str = os.getenv("RAG_LOCAL_EMBEDDING_PATH", "/app/models/bce-embedding-base_v1")
+
     TEMPERATURE: float = 0.7
     MAX_TOKENS: int = 2000
 

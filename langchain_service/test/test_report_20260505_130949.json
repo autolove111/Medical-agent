@@ -1,0 +1,113 @@
+{
+  "timestamp": "2026-05-05T13:09:49.667133",
+  "total": 13,
+  "passed": 13,
+  "failed": 0,
+  "success_rate": 100.0,
+  "results": [
+    {
+      "test_num": 1,
+      "test_name": "[1️⃣ 基础] 嵌入模型创建 (embedding_FAISS.create_embeddings)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:08:53.317280"
+    },
+    {
+      "test_num": 2,
+      "test_name": "[1️⃣ 基础] 向量库加载 (embedding_FAISS.load_vectorstore_from_dir)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:07.380402"
+    },
+    {
+      "test_num": 3,
+      "test_name": "[2️⃣ 数据] 文档加载 (document_loaders.load_text_documents)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:07.406236"
+    },
+    {
+      "test_num": 4,
+      "test_name": "[2️⃣ 数据] 文本清洁 (text_cleaner.clean_documents)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:07.406359"
+    },
+    {
+      "test_num": 5,
+      "test_name": "[2️⃣ 数据] 文本分块 (chunk_strategies.split_documents)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:07.406890"
+    },
+    {
+      "test_num": 6,
+      "test_name": "[3️⃣ 向量库] 向量库构建 (embedding_FAISS.build_main_vectorstore)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:19.999547"
+    },
+    {
+      "test_num": 7,
+      "test_name": "[4️⃣ 查询] 查询标准化 (rag_query.build_query_context)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:19.999639"
+    },
+    {
+      "test_num": 8,
+      "test_name": "[4️⃣ 查询] Redis 缓存 (rag_cache.RAGCache)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:20.003401"
+    },
+    {
+      "test_num": 9,
+      "test_name": "[5️⃣ 检索] 向量相似度检索 (similarity_search_with_score)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:32.550452"
+    },
+    {
+      "test_num": 10,
+      "test_name": "[5️⃣ 检索] 知识图谱增强 (rag_graph.GraphContextRetriever)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:32.551150"
+    },
+    {
+      "test_num": 11,
+      "test_name": "[5️⃣ 检索] 参考值查询 (reference_ranges.get_reference_range)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:32.551183"
+    },
+    {
+      "test_num": 12,
+      "test_name": "[6️⃣ 输出] 结果格式化 (rag_formatter.format_documents_as_answer)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:32.551268"
+    },
+    {
+      "test_num": 13,
+      "test_name": "[7️⃣ 集成] 完整 RAG 流程 (rag.RAGSystem.retrieve)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T13:09:49.663241"
+    }
+  ]
+}

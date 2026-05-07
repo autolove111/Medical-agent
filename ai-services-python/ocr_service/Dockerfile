@@ -4,8 +4,10 @@ WORKDIR /app
 
 # 安装依赖
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install --no-cache-dir \
+    --index-url https://mirrors.ustc.edu.cn/pypi/web/simple \
+    --trusted-host mirrors.ustc.edu.cn \
+    -r requirements.txt
 # 复制应用
 COPY main.py .
 

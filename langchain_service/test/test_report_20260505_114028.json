@@ -1,0 +1,113 @@
+{
+  "timestamp": "2026-05-05T11:40:28.529659",
+  "total": 13,
+  "passed": 3,
+  "failed": 10,
+  "success_rate": 23.076923076923077,
+  "results": [
+    {
+      "test_num": 1,
+      "test_name": "[1️⃣ 基础] 嵌入模型创建 (embedding_FAISS.create_embeddings)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查网络和 API 配置",
+      "timestamp": "2026-05-05T11:40:28.243884"
+    },
+    {
+      "test_num": 2,
+      "test_name": "[1️⃣ 基础] 向量库加载 (embedding_FAISS.load_vectorstore_from_dir)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查向量库和依赖",
+      "timestamp": "2026-05-05T11:40:28.278052"
+    },
+    {
+      "test_num": 3,
+      "test_name": "[2️⃣ 数据] 文档加载 (document_loaders.load_text_documents)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查文档加载器",
+      "timestamp": "2026-05-05T11:40:28.307666"
+    },
+    {
+      "test_num": 4,
+      "test_name": "[2️⃣ 数据] 文本清洁 (text_cleaner.clean_documents)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查清洁函数",
+      "timestamp": "2026-05-05T11:40:28.341627"
+    },
+    {
+      "test_num": 5,
+      "test_name": "[2️⃣ 数据] 文本分块 (chunk_strategies.split_documents)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查分块策略",
+      "timestamp": "2026-05-05T11:40:28.369862"
+    },
+    {
+      "test_num": 6,
+      "test_name": "[3️⃣ 向量库] 向量库构建 (embedding_FAISS.build_main_vectorstore)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查构建环境",
+      "timestamp": "2026-05-05T11:40:28.397369"
+    },
+    {
+      "test_num": 7,
+      "test_name": "[4️⃣ 查询] 查询标准化 (rag_query.build_query_context)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查模块导入",
+      "timestamp": "2026-05-05T11:40:28.428098"
+    },
+    {
+      "test_num": 8,
+      "test_name": "[4️⃣ 查询] Redis 缓存 (rag_cache.RAGCache)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T11:40:28.430930"
+    },
+    {
+      "test_num": 9,
+      "test_name": "[5️⃣ 检索] 向量相似度检索 (similarity_search_with_score)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查向量库和模型",
+      "timestamp": "2026-05-05T11:40:28.464770"
+    },
+    {
+      "test_num": 10,
+      "test_name": "[5️⃣ 检索] 知识图谱增强 (rag_graph.GraphContextRetriever)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T11:40:28.496833"
+    },
+    {
+      "test_num": 11,
+      "test_name": "[5️⃣ 检索] 参考值查询 (reference_ranges.get_reference_range)",
+      "passed": false,
+      "error_msg": "TypeError: get_reference_range() got an unexpected keyword argument 'age'",
+      "diagnostic": "检查参考值数据库",
+      "timestamp": "2026-05-05T11:40:28.496868"
+    },
+    {
+      "test_num": 12,
+      "test_name": "[6️⃣ 输出] 结果格式化 (rag_formatter.format_documents_as_answer)",
+      "passed": true,
+      "error_msg": "",
+      "diagnostic": "",
+      "timestamp": "2026-05-05T11:40:28.496957"
+    },
+    {
+      "test_num": 13,
+      "test_name": "[7️⃣ 集成] 完整 RAG 流程 (rag.RAGSystem.retrieve)",
+      "passed": false,
+      "error_msg": "ModuleNotFoundError: No module named 'langchain_huggingface'",
+      "diagnostic": "检查 RAG 系统",
+      "timestamp": "2026-05-05T11:40:28.526915"
+    }
+  ]
+}

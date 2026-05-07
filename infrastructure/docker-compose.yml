@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   db:
-    image: ${POSTGRES_IMAGE:-docker.m.daocloud.io/postgres:15-alpine}
+    image: postgres:15-alpine
     container_name: medlab-db
     restart: unless-stopped
     environment:
@@ -18,7 +18,7 @@ services:
     networks:
       - medlab-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U medlab_user -d medlab_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -86,6 +86,8 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       RAG_CACHE_TTL_SECONDS: ${RAG_CACHE_TTL_SECONDS:-86400}
       VECTOR_DB_PATH: /app/vector_db
+      RAG_USE_LOCAL_EMBEDDING: "true"
+      RAG_LOCAL_EMBEDDING_PATH: /app/models/bce-embedding-base_v1
     command:
       [
         "python",
@@ -108,18 +110,19 @@ services:
     networks:
       - medlab-network
     volumes:
-      - ../langchain_service:/app # ← 源代码挂载（热重载开发）
+      - ../langchain_service:/app
       - ./uploads:/app/uploads
       - langchain_vector_db:/app/vector_db
       - langchain_medical_docs:/app/medical_docs
       - medlab_python_logs:/app/logs
+      - D:/Users/xiaoli/Desktop/MedLabAgent/bce-embedding-base_v1:/app/models/bce-embedding-base_v1
     healthcheck:
       test:
         [
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
         ]
       interval: 30s
       timeout: 10s
@@ -130,7 +133,7 @@ services:
       context: ../ai-services-python/ocr_service
       dockerfile: Dockerfile
       args:
-        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-docker.m.daocloud.io/library/python:3.11-bookworm}
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-bookworm}
     container_name: medlab-ocr
     restart: unless-stopped
     environment:
@@ -153,7 +156,7 @@ services:
     networks:
       - medlab-network
     volumes:
-      - ../ai-services-python/ocr_service:/app # ← 源代码挂载（开发优化）
+      - ../ai-services-python/ocr_service:/app
       - ./uploads:/app/uploads
       - medlab_ocr_logs:/app/logs
     healthcheck:
@@ -162,13 +165,14 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health')",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health')"
         ]
       interval: 10s
       timeout: 5s
       retries: 5
+
   redis:
-    image: ${REDIS_IMAGE:-docker.m.daocloud.io/redis:7-alpine}
+    image: redis:7-alpine
     container_name: medlab-redis
     restart: unless-stopped
     ports:
@@ -182,25 +186,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # nginx 已禁用，直接使用后端服务
-  # nginx:
-  #   image: docker.m.daocloud.io/library/nginx:latest-alpine
-  #   container_name: medlab-nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ../frontend-vue/dist:/usr/share/nginx/html:ro
-  #     - medlab_nginx_cache:/var/cache/nginx
-  #   depends_on:
-  #     - java-backend
-  #     - python-langchain
-  #     - python-ocr
-  #   networks:
-  #     - medlab-network
 
 volumes:
   postgres_data:

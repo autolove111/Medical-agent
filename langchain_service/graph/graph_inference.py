@@ -13,16 +13,16 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import create_engine
 import os
 
-from .indicator_graph.graph_utils import GraphLoader
+from models.graph_loader import GraphLoader
 
 try:
-    from graph.indicator_graph.indicator_gat import IndicatorGAT
+    from models.indicator_gat import IndicatorGAT
 except ImportError as e:
     logging.warning(f"IndicatorGAT not found: {e}")
     IndicatorGAT = None
 
 try:
-    from graph.department_agent_graph.expert_gat import ExpertGAT
+    from models.expert_gat import ExpertGAT
 except ImportError as e:
     logging.warning(f"ExpertGAT not found: {e}")
     ExpertGAT = None

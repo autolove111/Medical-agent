@@ -1,10 +1,11 @@
-# Graph module - 图结构
+from .builder import ConsultationWorkflowRuntime, build_consultation_graph, run_consultation_workflow
+from .edges import route_after_update
 from .graph_inference import *
-from .indicator_graph import *
-from .department_agent_graph import *
 
 __all__ = [
-	"graph_inference",
-	"indicator_graph",
-	"department_agent_graph",
+    "ConsultationWorkflowRuntime",
+    "build_consultation_graph",
+    "run_consultation_workflow",
+    "route_after_update",
+    "graph_inference",
 ]

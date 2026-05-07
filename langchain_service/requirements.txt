@@ -24,3 +24,12 @@ faiss-cpu>=1.7.4
 psycopg2-binary>=2.9.0
 networkx>=3.0
 langchain-openai>=0.0.1
+pypdf>=4.0.0
+docx2txt>=0.8
+
+# --- 新增：用 FlagEmbedding 替代 sentence-transformers ---
+FlagEmbedding==1.2.11
+datasets==2.18.0
+
+# 保留 langchain-huggingface（如果你确实需要在 LangChain 里调用 HuggingFace 的 pipeline）
+langchain-huggingface>=0.0.1
