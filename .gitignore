@@ -51,3 +51,6 @@ config/*.secret
 secrets.yml
 .credentials
 .credentials.json
+
+# modles_hub
+models_hub/
