@@ -302,6 +302,73 @@ export default {
       }
     }
 
+    async function sendOcrMessage(query, ocrResult) {
+      if (!query.trim() || !ocrResult) return;
+
+      chatStore.addMessage({
+        role: "user",
+        content: query,
+        id: Date.now(),
+        timestamp: new Date(),
+      });
+
+      isLoading.value = true;
+      isStreaming.value = false;
+      error.value = null;
+      scrollToBottom();
+
+      chatStore.addMessage({
+        role: "assistant",
+        content: "",
+        id: Date.now() + 1,
+        timestamp: new Date(),
+      });
+      scrollToBottom();
+
+      try {
+        await ApiService.streamChat(
+          {
+            query,
+            ocr_result: ocrResult,
+          },
+          (chunk) => {
+            isStreaming.value = true;
+            const lastIndex = chatStore.messages.length - 1;
+            const msg = chatStore.messages[lastIndex];
+            if (msg && msg.role === "assistant") {
+              msg.content += chunk;
+              scrollToBottom();
+            }
+          },
+          (streamErr) => {
+            console.error("Stream error:", streamErr);
+          },
+          (metadata) => {
+            console.log("Stream done, metadata:", metadata);
+            const lastMsg = chatStore.messages[chatStore.messages.length - 1];
+            if (lastMsg && lastMsg.role === "assistant" && metadata) {
+              lastMsg.isMedical = metadata.isMedical || false;
+              lastMsg.extractedDiseases = metadata.diseases || "";
+              lastMsg.extractedDrugAllergy = metadata.drugAllergies || "";
+              lastMsg.content = lastMsg.content
+                .replace(/\n?\[META\|[^\]]*\]/g, "")
+                .trimEnd();
+            }
+          },
+        );
+      } catch (err) {
+        error.value = "閫氫俊澶辫触: " + err.message;
+        const lastIndex = chatStore.messages.length - 1;
+        const msg = chatStore.messages[lastIndex];
+        if (msg && msg.role === "assistant") {
+          msg.content = "鎶辨瓑锛岃繛鎺ユ湇鍔℃椂鍑洪敊浜嗐€?";
+        }
+      } finally {
+        isLoading.value = false;
+        isStreaming.value = false;
+      }
+    }
+
     function uploadFile() {
       fileInput.value.click();
     }
@@ -316,6 +383,9 @@ export default {
       try {
         const response = await ApiService.uploadReport(file);
         if (response.status === "success") {
+          const ocrResult = await ApiService.analyzeVision(response.filePath);
+          await sendOcrMessage("请分析这张化验单", ocrResult);
+          return;
           // 上传成功后，自动向 AI 发送分析请求
           userInput.value = `请分析这张化验单：${response.filePath}`;
 
@@ -496,6 +566,7 @@ export default {
       showProfileDialog,
       profileForm,
       sendMessage,
+      sendOcrMessage,
       uploadFile,
       handleFileUpload,
       handleLogout,

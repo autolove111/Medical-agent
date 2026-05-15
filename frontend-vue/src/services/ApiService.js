@@ -246,12 +246,32 @@ export default {
     }
   },
 
+  async analyzeVision(filePath, model = null) {
+    try {
+      const response = await apiClient.post("/v1/ocr/analyze-vision", null, {
+        params: {
+          filePath,
+          ...(model ? { model } : {}),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Analyze vision failed:", error);
+      throw error;
+    }
+  },
+
   /**
    * 流式对话（Fetch 方案 - 大厂主流做法）
    * 完美支持 POST 请求和携带 Authorization Header
    */
-  async streamChat(userQuery, onMessage, onError, onDone) {
+  async streamChat(userQuery, onMessage, onError, onDone, options = {}) {
     const token = localStorage.getItem("token");
+    const requestPayload =
+      typeof userQuery === "object" && userQuery !== null
+        ? { ...userQuery }
+        : { query: userQuery };
+    const queryText = requestPayload.query || requestPayload.userQuery || "";
 
     // 构建完整的后端流式接口 URL，避免相对路径落到当前 origin（例如 :8888 静态服务器）
     const base =
@@ -260,7 +280,7 @@ export default {
       "/api";
     const prefix = base.replace(/\/$/, "");
     const streamUrl = `${prefix}/v1/agent/chat/stream?userQuery=${encodeURIComponent(
-      userQuery,
+      queryText,
     )}`;
 
     const response = await fetch(streamUrl, {
@@ -268,7 +288,13 @@ export default {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "text/event-stream",
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        ...requestPayload,
+        ...options,
+        query: queryText,
+      }),
     });
 
     if (!response.ok) {
