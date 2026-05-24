@@ -55,3 +55,8 @@ secrets.yml
 # modles_hub
 models_hub/
 models/
+
+# packages
+packages/
+
+
