@@ -27,9 +27,8 @@ class Settings(BaseSettings):
     )
 
     VECTOR_DB_TYPE: str = "faiss"
-    VECTOR_DB_PATH: str = os.getenv(
-        "VECTOR_DB_PATH",
-        str(BASE_DIR / "knowledge" / "vector_db"),
+    VECTOR_DB_PATH: str = str(
+        (BASE_DIR / os.getenv("VECTOR_DB_PATH", "knowledge/vector_db")).resolve()
     )
 
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")

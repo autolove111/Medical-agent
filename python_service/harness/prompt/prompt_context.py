@@ -177,6 +177,15 @@ def assemble_final_prompt(state: AgentState) -> str:
     current_task = state.task_queue[0] if state.task_queue else ""
     layer2 = build_task_prompt(current_task)
 
+    # RAG 层：医学知识库检索结果（如有）
+    rag_text = ""
+    if getattr(state, "rag_context", ""):
+        rag_text = (
+            "【参考医学知识库】以下是从医学知识库中检索到的相关信息，"
+            "请优先参考这些内容回答用户问题：\n"
+            + state.rag_context
+        )
+
     # 第三层：上下文（历史对话，跳过 system 消息）
     layer3 = messages_to_prompt(state.messages)
 
@@ -185,6 +194,8 @@ def assemble_final_prompt(state: AgentState) -> str:
 
     # 组装
     parts = [layer1, layer2]
+    if rag_text:
+        parts.append(rag_text)
     if layer3:
         parts.append(layer3)
     parts.append(layer4)

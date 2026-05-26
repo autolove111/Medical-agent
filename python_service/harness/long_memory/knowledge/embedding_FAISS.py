@@ -29,6 +29,11 @@ def resolve_embedding_model_source() -> str:
         settings.RAG_LOCAL_EMBEDDING_PATH or DEFAULT_EMBEDDING_MODEL_ID,
     )
 
+    # 相对路径基于 python_service/ 目录解析（与 .env 同目录）
+    if not os.path.isabs(configured_source):
+        _env_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        configured_source = os.path.normpath(os.path.join(_env_dir, configured_source))
+
     if os.path.isdir(configured_source):
         return configured_source
 

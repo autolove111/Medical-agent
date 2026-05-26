@@ -117,6 +117,7 @@ class AgentState:
 
     # ---- 记忆 ----
     memory_ref: Optional[str] = None                        # 长期记忆引用（后续对接记忆系统）
+    rag_context: str = ""                                   # 当前轮 RAG 检索到的医学知识上下文
 
     # ---- 执行控制 ----
     is_finished: bool = False                               # 本轮任务是否结束
@@ -184,6 +185,7 @@ class AgentState:
             "reasoning_process": self.reasoning_process,
             "task_queue": copy.deepcopy(self.task_queue),
             "memory_ref": self.memory_ref,
+            "rag_context": self.rag_context,
             "is_finished": self.is_finished,
         }
         self._snapshots.append(snapshot)
@@ -199,6 +201,7 @@ class AgentState:
         self.reasoning_process = snapshot["reasoning_process"]
         self.task_queue = snapshot["task_queue"]
         self.memory_ref = snapshot["memory_ref"]
+        self.rag_context = snapshot.get("rag_context", "")
         self.is_finished = snapshot["is_finished"]
         logger.debug("Rolled back to snapshot (remaining: %d)", len(self._snapshots))
         return True

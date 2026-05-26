@@ -9,9 +9,11 @@ create_agent
 - 通过 prompt_context 构建提示词
 - 提供同步 / 流式两种调用方式
 - 预留工具调用接口，后续扩展
+- 接入 RAG 医学知识检索
 """
 
 import os
+import sys
 import logging
 from dataclasses import dataclass
 from typing import List, Optional, Callable, Iterable
@@ -34,6 +36,29 @@ logger = logging.getLogger(__name__)
 # .env 所在目录（python_service/），用于解析相对路径
 _ENV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 load_dotenv(os.path.join(_ENV_DIR, ".env"))
+
+# ---- RAG 模块（可选） ----
+_rag_retrieve = None
+
+
+def _ensure_rag():
+    """延迟加载 RAG 检索函数，避免模型加载阶段导入失败阻塞主流程"""
+    global _rag_retrieve
+    if _rag_retrieve is not None:
+        return _rag_retrieve
+
+    _long_memory = os.path.join(_ENV_DIR, "harness", "long_memory")
+    if _long_memory not in sys.path:
+        sys.path.insert(0, _long_memory)
+
+    try:
+        from knowledge.rag import retrieve_medical_knowledge
+        _rag_retrieve = retrieve_medical_knowledge
+        logger.info("RAG module loaded successfully")
+    except Exception as e:
+        logger.warning("RAG module unavailable: %s", e)
+        _rag_retrieve = False
+    return _rag_retrieve
 
 
 @dataclass
@@ -81,9 +106,29 @@ class LabAgent:
         """重置状态（保留用户画像和 system prompt）"""
         self.state.reset()
 
+    def _do_rag(self, query: str):
+        """执行 RAG 检索并将结果写入 state.rag_context"""
+        rag_fn = _ensure_rag()
+        if not rag_fn:
+            self.state.rag_context = ""
+            return
+        try:
+            answer, docs = rag_fn(query)
+            if answer:
+                self.state.rag_context = answer
+                logger.info("RAG hit: %d chars, %d docs", len(answer), len(docs))
+            else:
+                self.state.rag_context = ""
+        except Exception as e:
+            logger.warning("RAG query failed: %s", e)
+            self.state.rag_context = ""
+
     def chat(self, user_input: str) -> str:
         """同步对话：发送用户输入，返回完整回复"""
         self.state.add_message(HumanMessage(content=user_input))
+
+        # RAG 检索医学知识库
+        self._do_rag(user_input)
 
         # 从 state 组装四层 prompt，传给 ChatModel
         prompt = assemble_final_prompt(self.state)
@@ -95,6 +140,9 @@ class LabAgent:
     def chat_stream(self, user_input: str) -> Iterable[Chunk]:
         """流式对话：逐 token 返回回复片段"""
         self.state.add_message(HumanMessage(content=user_input))
+
+        # RAG 检索医学知识库
+        self._do_rag(user_input)
 
         # 从 state 组装四层 prompt，传给 ChatModel
         prompt = assemble_final_prompt(self.state)

@@ -25,8 +25,12 @@ from harness.llm_core.model_loader import ModelLoader
 logger = logging.getLogger(__name__)
 
 ROLE_MARKER_PATTERN = re.compile(
-    r"(?:^|[\r\n]+)\s*(Human|User|Assistant|System)\s*[:：]",
+    r"(?:^|[\r\n]+|[。！？#]|回答完毕|停止)\s*(Human|User|Assistant|System)\s*[:：]",
     flags=re.IGNORECASE,
+)
+
+STOP_PATTERN = re.compile(
+    r"#停止#|回答完毕[。！]?|#结束#",
 )
 
 
@@ -67,13 +71,18 @@ def _repair_mojibake(text: str) -> str:
 
 
 def _truncate_at_role_marker(text: str) -> str:
-    """截断模型续写出的角色标记"""
+    """截断模型续写出的角色标记和停止标记"""
     if not text:
         return text
+    # 先检查角色标记
     match = ROLE_MARKER_PATTERN.search(text)
-    if not match:
-        return text
-    return text[: match.start()].rstrip()
+    if match:
+        return text[: match.start()].rstrip()
+    # 再检查停止标记
+    match = STOP_PATTERN.search(text)
+    if match:
+        return text[: match.start()].rstrip()
+    return text
 
 
 class ChatModel:

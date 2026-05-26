@@ -35,3 +35,7 @@ packages/
 # HuggingFace cache
 hf_cache/
 .cache/
+
+# Python cache
+__pycache__/
+*.pyc
