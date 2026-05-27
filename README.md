@@ -12,62 +12,180 @@ Medical-agent 是一个面向医疗检验场景的智能对话系统，能够解
 |------|---------|
 | 大语言模型 | Qwen2.5-7B-Instruct（4-bit 量化，本地部署） |
 | 嵌入模型 | bce-embedding-base_v1（768 维，RAG 检索） |
+| OCR 引擎 | PaddleOCR (PP-OCRv4)（本地部署，离线可用） |
 | 向量数据库 | FAISS（CPU 运行） |
 | 推理框架 | PyTorch 2.6 + Transformers + bitsandbytes |
+| API 服务 | FastAPI + Uvicorn + SSE 流式 |
+| 数据库 | SQLite + SQLAlchemy ORM |
 | 前端 | Vue 3 + Vite + Pinia + Axios |
 | 环境管理 | Conda (medagent, Python 3.11) |
+
+## Demo 全流程架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        前端 (Vue 3 :8888)                       │
+│  Login → ChatWindow → ReportUpload → IndicatorPanel → Sources  │
+│                         DisclaimerBar                           │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │  /api/*   /api/v1/auth/*
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  Python FastAPI 后端 (:8000)                     │
+│                                                                 │
+│  ┌──────────┐  ┌──────────────┐  ┌───────────────────────────┐  │
+│  │ Auth 模块 │  │ Report 管线   │  │ Chat 管线                  │  │
+│  │ register  │  │ upload → OCR  │  │ input → RAG → LLM → guard │  │
+│  │ login     │  │ → classify   │  │   → SSE stream → response │  │
+│  │ token验   │  │ → correlate  │  │                            │  │
+│  └────┬─────┘  └──────┬───────┘  └────────────┬───────────────┘  │
+│       │               │                        │                  │
+│       ▼               ▼                        ▼                  │
+│  ┌─────────┐  ┌──────────────┐  ┌────────────────────────────┐  │
+│  │ SQLite  │  │ PaddleOCR    │  │ LabAgent                    │  │
+│  │ users   │  │ :8001 本地OCR│  │ ├─ AgentState (快照/回滚)    │  │
+│  │ reports │  │ 28行全量提取  │  │ ├─ RAG (bce-embedding)     │  │
+│  │ chat    │  │ 表格+正则解析  │  │ ├─ AgentLoop (max 5 steps) │  │
+│  └─────────┘  └──────┬───────┘  │ ├─ tool_parser (4 tools)   │  │
+│                      │           │ ├─ OutputGuard (安全红线)   │  │
+│                      ▼           │ └─ Qwen 7B 推理             │  │
+│              化验单图片 → 文本    └────────────────────────────┘  │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ 解读引擎 (InterpretationEngine)                           │   │
+│  │ ├─ 40+ 参考范围匹配 (年龄/性别分层)                        │   │
+│  │ ├─ 15 组多指标联动规则                                    │   │
+│  │ ├─ 10+ 类指标饮食运动建议                                  │   │
+│  │ └─ SourceTracker 来源引用追踪                              │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 完整交互链路
+
+```
+用户上传化验单图片
+  │
+  ├─→ PaddleOCR 本地识别 → 28 个文本块全量提取
+  │     ├─ 表格布局：按 Y/X 坐标分行分列 → 提取 指标名/数值/单位/参考范围
+  │     ├─ 自由文本：逐行正则解析 → 含已知指标关键词的行
+  │     └─ 无法解析：原始文本全量保留，由 LLM 直接理解
+  │
+  ├─→ 指标分类 (40+ 参考范围)
+  │     └─ 年龄 7 段分层 (infant→elderly) + 性别差异 + 危急值检测
+  │
+  ├─→ 联动分析 (15 组规则)
+  │     └─ 肾功能受损 / 肝细胞损伤 / 代谢综合征 / 贫血 / 感染 / 电解质...
+  │
+  ├─→ 饮食运动建议 (10+ 类指标)
+  │     └─ 循证规则 → 饮食/运动分类 → 来源标注
+  │
+  ├─→ 解读 Prompt 组装 (6 段式)
+  │     └─ 总览 → 逐项解读 → 关联分析 → 健康建议 → 参考来源 → 免责声明
+  │
+  ├─→ LabAgent.chat()
+  │     ├─ RAG 检索 (bce-embedding → FAISS → 混合检索)
+  │     ├─ Qwen 7B 推理 (4-bit 量化)
+  │     ├─ _truncate_at_role_marker (截断幻觉续写)
+  │     └─ _safety_check → OutputGuard.sanitize() + 免责声明注入
+  │
+  └─→ SSE 流式返回前端
+        ├─ ChatMessage 逐 token 渲染
+        ├─ IndicatorPanel 指标总览 (危急/异常/正常分组)
+        ├─ Sources Panel 参考来源展开
+        └─ DisclaimerBar 底部固定免责声明
+```
 
 ## 项目结构
 
 ```
 Medical-agent/
-├── python_service/                    # 核心 Python AI 服务
+├── python_service/                       # 核心 Python AI 服务
+│   ├── server.py                         # FastAPI 应用入口 (Phase 1)
 │   ├── core/
-│   │   └── config.py                  # Pydantic 全局配置
-│   ├── harness/                       # 自研 Harness 框架层
+│   │   └── config.py                     # Pydantic 全局配置
+│   ├── api/                              # API 路由层 (Phase 1-4)
+│   │   ├── models.py                     # Pydantic 请求/响应模型
+│   │   ├── dependencies.py               # AgentPool 会话池 + 工具注册
+│   │   └── routes/
+│   │       ├── auth.py                   # 注册/登录/Token 验证 (兼容旧前端)
+│   │       ├── chat.py                   # 同步+SSE 流式对话 (Phase 1-3)
+│   │       ├── report.py                 # 报告上传+OCR+管线 (Phase 2)
+│   │       └── user.py                   # 用户画像 CRUD (Phase 4)
+│   ├── app/                              # 业务逻辑层 (Phase 2-6)
+│   │   ├── business/
+│   │   │   ├── lab_report.py             # LabReport/LabIndicator 数据模型
+│   │   │   ├── indicator_classifier.py   # 40+ 参考范围分类器 (年龄/性别分层)
+│   │   │   ├── correlation_engine.py     # 15 组多指标联动规则引擎
+│   │   │   ├── report_pipeline.py        # OCR→结构化→分类→联动 完整管线
+│   │   │   ├── interpretation_engine.py  # 6 段式解读 Prompt 组装
+│   │   │   ├── source_tracker.py         # 知识库来源引用追踪
+│   │   │   └── dietary_advisor.py        # 10+ 类指标饮食运动建议
+│   │   ├── safety/
+│   │   │   └── output_guard.py           # OutputGuard 安全红线 (Phase 6)
+│   │   └── persistence/                  # 持久化层 (Phase 4)
+│   │       ├── database.py               # SQLite 引擎 + 会话工厂
+│   │       ├── models.py                 # User/Report/Chat ORM 模型
+│   │       └── repositories/
+│   │           ├── user_repo.py          # 用户 CRUD
+│   │           ├── report_repo.py        # 报告 CRUD
+│   │           └── chat_repo.py          # 对话记录 CRUD
+│   ├── harness/                          # 自研 Harness 框架层
 │   │   ├── llm_core/
-│   │   │   └── model_loader.py        # 模型加载器（单例 + 懒加载 + 4-bit 量化）
+│   │   │   └── model_loader.py           # 模型加载器（单例 + 懒加载 + 4-bit）
 │   │   ├── llm_adapter/
-│   │   │   ├── chat_model.py          # 推理适配器（invoke/stream，零框架依赖）
-│   │   │   └── create_agent.py        # Agent 工厂 + LabAgent + RAG 接入
+│   │   │   ├── chat_model.py             # 推理适配器 (invoke/stream + 截断)
+│   │   │   ├── create_agent.py           # Agent 工厂 + LabAgent
+│   │   │   ├── agent_loop.py             # AgentLoop 调度循环 (Phase 5)
+│   │   │   ├── tool_parser.py            # 工具调用解析 (XML+Action+JSON)
+│   │   │   └── agent_tools.py            # 4 个医疗专用工具
 │   │   ├── state/
-│   │   │   └── agent_state.py         # Agent 状态管理（消息/快照/回滚/记忆）
+│   │   │   └── agent_state.py            # Agent 状态管理 (消息/快照/回滚)
 │   │   ├── prompt/
-│   │   │   └── prompt_context.py      # 四层提示词组装引擎
-│   │   └── long_memory/knowledge/     # RAG 长期记忆系统
-│   │       ├── rag.py                 # RAG 系统总入口（单例）
-│   │       ├── rag_retriever.py       # 检索器注册与懒加载
-│   │       ├── rag_cache.py           # Redis 缓存层
-│   │       ├── rag_formatter.py       # 检索结果格式化
-│   │       ├── hybrid_retriever.py    # 混合检索引擎（关键词 + 语义 + 重排序）
-│   │       ├── query_rewriter.py      # 医学查询改写器
-│   │       ├── embedding_FAISS.py     # BCE 嵌入 + FAISS 向量库
-│   │       ├── medical_knowledge.py   # 医学知识库 + 化验异常判断
-│   │       ├── reference_ranges.py    # 40+ 种检验指标参考范围
-│   │       ├── chunk_strategies.py    # 文档分块策略
-│   │       ├── document_loaders.py    # 多格式文档加载器
-│   │       ├── text_cleaner.py        # 文本清洗
-│   │       ├── main_agent_docs/       # 医学知识源文档
-│   │       └── vector_db/main/        # 预构建 FAISS 索引
-│   ├── models/                        # 本地模型权重（需自行下载）
+│   │   │   └── prompt_context.py         # 四层提示词组装引擎
+│   │   └── long_memory/knowledge/        # RAG 长期记忆系统
+│   │       ├── rag.py                    # RAG 系统总入口（单例）
+│   │       ├── rag_formatter.py          # 检索结果格式化 + 来源元数据提取
+│   │       ├── hybrid_retriever.py       # 混合检索（关键词+语义+重排序）
+│   │       ├── query_rewriter.py         # 医学查询改写器 (60+ 缩写)
+│   │       ├── embedding_FAISS.py        # BCE 嵌入 + FAISS 向量库
+│   │       ├── reference_ranges.py       # 40+ 种检验指标参考范围
+│   │       └── ...                       # 分块策略/文档加载/文本清洗
+│   ├── models/                           # 本地模型权重（需自行下载）
 │   │   ├── Qwen2.5-7B-Instruct/
-│   │   ├── Qwen2.5-3B-Instruct/
 │   │   └── bce-embedding-base_v1/
-│   └── .env                           # Python 服务配置
-├── frontend-vue/                      # Vue 3 前端
+│   └── data/                             # SQLite 数据库文件
+├── ai-services-python/ocr_service/       # OCR 服务
+│   ├── main.py                           # 原 DashScope OCR (云 API, 兼容)
+│   ├── paddle_ocr.py                     # PaddleOCR 引擎 (本地, Phase 7)
+│   └── paddle_server.py                  # PaddleOCR FastAPI 入口 (:8001)
+├── frontend-vue/                         # Vue 3 前端
 │   └── src/
-│       ├── components/                # ChatWindow / ChatMessage
-│       ├── views/                     # Login
-│       ├── stores/                    # Pinia 状态管理
-│       └── services/                  # API 请求封装
-├── ai-services-python/ocr_service/    # OCR 检验单识别服务
-├── test/                              # 测试脚本
-│   ├── 终端多轮对话测试.py             # 交互式多轮对话测试
-│   ├── create_modle_test.py           # 模型加载 + Agent 创建单元测试
-│   ├── 验证RAG.py                     # RAG 接入有效性验证
-│   └── 验证检索引擎优化.py             # 混合检索引擎效果验证
-├── 大创文档.md                         # 技术架构设计文档
-└── README.md                          # 本文件
+│       ├── components/
+│       │   ├── ChatWindow.vue            # 主聊天窗口 (侧栏+来源面板)
+│       │   ├── ChatMessage.vue           # Markdown 消息渲染
+│       │   ├── IndicatorCard.vue         # 单项指标卡片 (5 状态颜色)
+│       │   ├── IndicatorPanel.vue        # 指标总览面板 (分组折叠)
+│       │   ├── ReportUpload.vue          # 上传对话框 (拖拽+预览)
+│       │   └── DisclaimerBar.vue         # 底部固定免责声明
+│       ├── views/Login.vue               # 登录/注册页
+│       ├── stores/                       # Pinia 状态 (auth/chat)
+│       ├── services/ApiService.js        # API 封装 (新旧兼容)
+│       └── router/index.js               # 路由 + 认证守卫
+├── test/                                 # 测试脚本
+│   ├── 终端多轮对话测试.py                # 交互式多轮对话
+│   ├── create_modle_test.py              # 模型加载单元测试
+│   ├── 验证RAG.py                        # RAG 有效性验证
+│   ├── 验证检索引擎优化.py                # 检索引擎验证
+│   ├── verify_phase1.py                  # Phase 1: FastAPI 服务层
+│   ├── verify_phase2.py                  # Phase 2: 报告处理管线
+│   ├── verify_phase3.py                  # Phase 3: 解读引擎+来源引用
+│   ├── verify_phase4_5.py                # Phase 4+5: 持久化+AgentLoop
+│   ├── verify_phase6.py                  # Phase 6: 安全红线框架
+│   └── verify_all_phases.py              # 一键全量验证
+├── picture/                              # 测试用化验单样例
+├── 大创文档.md                            # 技术架构设计文档
+└── README.md                             # 本文件
 ```
 
 ## 快速开始
@@ -81,33 +199,32 @@ Medical-agent/
 ### 1. 创建环境并安装依赖
 
 ```powershell
-# 创建 Conda 环境
 conda create -n medagent python=3.11 -y
 conda activate medagent
 
-# 安装 PyTorch（CUDA 12.4）
+# PyTorch (CUDA 12.4)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-# 安装核心依赖
+# 核心依赖
 pip install transformers accelerate bitsandbytes sentencepiece
 pip install fastapi uvicorn pydantic pydantic-settings python-dotenv
 pip install sentence-transformers faiss-cpu
-pip install redis httpx requests tenacity tiktoken aiofiles
+pip install redis httpx requests tenacity tiktoken aiofiles sqlalchemy python-multipart
 
-# RAG 检索层依赖（LangChain 封装，待去框架化）
+# RAG 检索层
 pip install langchain-community langchain-core langchain-text-splitters
+
+# PaddleOCR 本地 OCR (Phase 7)
+pip install paddlepaddle==2.6.2 paddleocr==2.8.1
 ```
 
 ### 2. 下载模型权重
 
-从 HuggingFace 或 ModelScope 下载以下模型到 `python_service/models/`：
-
 ```powershell
-# Qwen2.5-7B-Instruct（主模型，~14GB）
-# 推荐使用 ModelScope（国内更快）：
+# Qwen2.5-7B-Instruct (主模型, ~14GB)
 python -c "from modelscope import snapshot_download; snapshot_download('qwen/Qwen2.5-7B-Instruct', cache_dir='python_service/models/Qwen2.5-7B-Instruct')"
 
-# bce-embedding-base_v1（嵌入模型，~1GB）
+# bce-embedding-base_v1 (嵌入模型, ~1GB)
 python -c "from huggingface_hub import snapshot_download; snapshot_download('maidalun1020/bce-embedding-base_v1', local_dir='python_service/models/bce-embedding-base_v1')"
 ```
 
@@ -117,28 +234,51 @@ python -c "from huggingface_hub import snapshot_download; snapshot_download('mai
 
 ```env
 RAG_USE_LOCAL_EMBEDDING=true
-LLM_MODEL_PATH=./models/Qwen2.5-7B-Instruct     # 主模型路径
-RAG_LOCAL_EMBEDDING_PATH=./models/bce-embedding-base_v1  # 嵌入模型路径
-VECTOR_DB_PATH=./harness/long_memory/knowledge/vector_db  # FAISS 索引路径
+LLM_MODEL_PATH=./models/Qwen2.5-7B-Instruct
+RAG_LOCAL_EMBEDDING_PATH=./models/bce-embedding-base_v1
+VECTOR_DB_PATH=./harness/long_memory/knowledge/vector_db
 ```
 
-### 4. 运行测试
+### 4. 启动服务 (三终端)
+
+```powershell
+# 终端 1: Python 后端
+conda activate medagent
+cd Medical-agent/python_service
+python server.py
+# → http://localhost:8000 (Swagger: /docs)
+
+# 终端 2: PaddleOCR 服务
+conda activate medagent
+cd Medical-agent/ai-services-python/ocr_service
+python paddle_server.py
+# → http://localhost:8001 (首次启动自动下载 PP-OCRv4 模型 ~80MB)
+
+# 终端 3: 前端
+cd Medical-agent/frontend-vue
+npm install
+npm run dev
+# → http://localhost:8888
+```
+
+### 5. 验证
 
 ```powershell
 conda activate medagent
 cd Medical-agent
 
-# 交互式多轮对话测试
-python -u test/终端多轮对话测试.py
+# 一键验证所有模块 (无需 GPU/模型)
+python test/verify_all_phases.py
 
-# 模型加载单元测试
-python -u test/create_modle_test.py
+# 单独验证
+python test/verify_phase1.py        # FastAPI 服务层
+python test/verify_phase2.py        # 报告管线
+python test/verify_phase3.py        # 解读引擎
+python test/verify_phase4_5.py      # 持久化 + AgentLoop
+python test/verify_phase6.py        # 安全红线
 
-# RAG 有效性验证
-python -u test/验证RAG.py
-
-# 检索引擎优化验证
-python -u test/验证检索引擎优化.py
+# 原始终端对话测试 (需 GPU + 模型)
+python test/终端多轮对话测试.py
 ```
 
 ## 核心架构
@@ -162,144 +302,86 @@ Assistant:                      ← 生成触发标记
 长期记忆 → RAG 知识检索 → FAISS 向量库 + 40+ 指标参考范围
 ```
 
-### Agent 对话流程
+### AgentLoop 调度流程 (Phase 5)
 
 ```
-用户输入 → LabAgent.chat()
-    ├─ state.add_message(HumanMessage)
-    ├─ _do_rag(query)          ← 混合检索（关键词 + 语义 + 重排序）
-    ├─ assemble_final_prompt()  ← 四层组装 + RAG 上下文注入
-    ├─ chat_model.invoke()      ← 4-bit 量化推理
-    └─ state.add_message(AssistantMessage)
+用户输入 → State(HumanMessage)
+  → assemble_final_prompt(state) + 工具描述
+  → chat_model.invoke(prompt)
+  → parse_tool_call(reply)
+    ├─ 有工具调用 → 执行工具 → ToolMessage 写回 state → 循环
+    └─ 无工具调用 → 最终回复 → 返回
+  max_steps=5 | 快照回滚 | loop detection
 ```
 
----
-
-## 代码修改记录
-
-以下记录了从项目初始状态到当前版本的所有代码变更，按分支 `tbz_1` 提交。
-
-### 1. 环境搭建与模型配置
-
-| 文件 | 修改内容 |
-|------|---------|
-| `python_service/.env` | 模型路径从 7B 更新；新增 `VECTOR_DB_PATH` 配置项；支持 3B/7B 切换 |
-| `python_service/core/config.py` | 修复 `VECTOR_DB_PATH` 的相对路径解析（基于 `BASE_DIR` 而非 CWD）|
-
-**原因**：原配置路径使用 CWD 解析，跨目录运行时找不到模型。改为基于 `python_service/` 目录的绝对路径解析。
-
-### 2. 模型推理层修复
-
-| 文件 | 修改内容 |
-|------|---------|
-| `python_service/harness/llm_adapter/chat_model.py` | 增强 `ROLE_MARKER_PATTERN` 正则，新增 `#` / `回答完毕` / `停止` 前缀匹配；新增 `STOP_PATTERN` 正则（`#停止#` / `回答完毕` / `#结束#`）；`_truncate_at_role_marker()` 增加停止标记检查 |
-
-**原因**：7B 模型推理时产生幻觉续写，生成 `#停止#Human:` 等伪对话标记。原正则仅匹配 `^`、`\n`、`。！？` 作为前缀，无法覆盖 `#停止#Human:` 变体。修复后所有变体均能被截断，防止污染 AgentState。
-
-### 3. Agent 状态增强
-
-| 文件 | 修改内容 |
-|------|---------|
-| `python_service/harness/state/agent_state.py` | 新增 `rag_context: str = ""` 字段；`save_snapshot()` 和 `rollback()` 增加 `rag_context` 的持久化和恢复 |
-
-**原因**：为 RAG 接入做准备——每轮对话的 RAG 检索结果需要暂存在状态中供提示词组装使用。
-
-### 4. RAG 接入主对话流程
-
-| 文件 | 修改内容 |
-|------|---------|
-| `python_service/harness/llm_adapter/create_agent.py` | 新增 `_ensure_rag()` 延迟加载函数（含路径注入和异常降级）；新增 `_do_rag()` 方法，在每轮 `chat()` 和 `chat_stream()` 中自动调用 RAG 检索；`chat()` 和 `chat_stream()` 流程增加 RAG 步骤 |
-
-**原因**：RAG 模块代码完整但从未接入主对话流程——嵌入模型、FAISS 索引、检索器都已就绪，但 `LabAgent.chat()` 没有调用。接入后每轮对话自动检索医学知识库并注入 prompt。
-
-### 5. 提示词 RAG 注入
-
-| 文件 | 修改内容 |
-|------|---------|
-| `python_service/harness/prompt/prompt_context.py` | `assemble_final_prompt()` 增加 RAG 层：当 `state.rag_context` 非空时，在 Layer 2（任务指令）和 Layer 3（历史对话）之间插入 `【参考医学知识库】` 提示块 |
-
-**原因**：RAG 检索到的医学知识需要注入 prompt 才能被模型使用。插入位置在任务指令之后、历史对话之前，确保模型优先参考知识库内容回答。
-
-### 6. RAG 路径修复
-
-| 文件 | 修改内容 |
-|------|---------|
-| `python_service/harness/long_memory/knowledge/embedding_FAISS.py` | `resolve_embedding_model_source()` 增加相对路径解析：基于 `__file__` 推导 `python_service/` 目录，将 `./models/` 等相对路径转为绝对路径 |
-
-**原因**：嵌入模型路径依赖 CWD，在项目根目录运行时找不到模型。修复后与 LLM 路径解析逻辑一致。
-
-### 7. 检索引擎优化（阶段二）
-
-#### 7.1 查询改写器（新增）
-
-**文件**：`python_service/harness/long_memory/knowledge/query_rewriter.py`
-
-- 60+ 医学指标缩写 → 中文全称映射（如 `Cr` → `血肌酐 肾功能`）
-- 30 组口语表述 → 医学术语扩展（如 `偏高` → `升高 高于正常 参考范围 异常原因`）
-- 指标提取函数：英文缩写匹配（CJK 字符兼容边界）+ 中文指标名匹配
-
-#### 7.2 混合检索引擎（新增）
-
-**文件**：`python_service/harness/long_memory/knowledge/hybrid_retriever.py`
-
-- **关键词匹配层**：从 `reference_ranges.py`（40+ 指标）精确匹配参考范围，三层策略（代码 → 中文名 → 系统关键词），最多返回 5 篇
-- **语义检索层**：复用原有 FAISS 检索器
-- **重排序**：按关键词命中率加权（指标缩写权重 ×2）
-- **截断**：文档超过 600 字符时在句号/换行处截断
-- **去重**：按内容指纹（前 100 字符）去重
-
-#### 7.3 RAG 系统集成
-
-**文件**：`python_service/harness/long_memory/knowledge/rag.py`
-
-- `RAGSystem` 增加 `hybrid_retriever` 和 `_get_faiss_retriever()` 
-- `retrieve()` 方法改为混合检索路线（查询改写 → reference_ranges 匹配 → FAISS 语义 → 重排序截断），纯语义检索作为回退
-
-### 8. 测试脚本
-
-| 文件 | 修改/新增 | 说明 |
-|------|-----------|------|
-| `test/终端多轮对话测试.py` | 重写 docstring | 移除含 Unicode 转义冲突的旧示例输出；更新 Conda 环境名 |
-| `test/create_modle_test.py` | 修复 | 模型路径从 `models/` 修正为 `python_service/models/`；`agent.history` 改为 `agent.state.messages` |
-| `test/验证RAG.py` | **新增** | RAG 接入验证：直接检索 → Agent 对话 → state.rag_context 检查 → 回复内容分析 |
-| `test/验证检索引擎优化.py` | **新增** | 检索引擎优化验证：查询改写 → 精确匹配 → 混合检索对比 → Agent 端到端 |
-
-### 9. 文档
-
-| 文件 | 修改内容 |
-|------|---------|
-| `大创文档.md` | 补充"记忆管理"章节（~400 行）：三层记忆架构、瞬时/短期/长期记忆实现细节、RAG 系统完整文档（嵌入模型、向量数据库、检索流程、缓存层、知识库、数据流） |
-| `README.md` | **新增** 项目说明文档（本文件） |
-
-### 10. 依赖安装
-
-在 `medagent` Conda 环境中新增安装：
+### OutputGuard 安全管道 (Phase 6)
 
 ```
-langchain-community  langchain-core  langchain-text-splitters
-redis  modelscope
+模型输出 → sanitize()
+  ├─ BLOCK 规则 (禁止确诊/处方) → 替换为安全回复
+  ├─ WARN 规则 (话题标签截断) → 自动裁剪
+  └─ LOG 规则 → 仅记录
+  → inject_disclaimer() → 返回
 ```
 
 ---
 
-## 当前开发进度
+## 开发阶段总览
 
-| 模块 | 状态 |
-|------|------|
-| 模型加载层（llm_core） | ✅ 完成 |
-| 推理适配器（llm_adapter） | ✅ 完成 |
-| Agent 状态管理（state） | ✅ 完成 |
-| 四层提示词（prompt） | ✅ 完成 |
-| RAG 集成（接入主流程） | ✅ 完成 |
-| 检索引擎优化（查询改写 + 混合检索 + 重排序） | ✅ 完成 |
-| AgentLoop 调度循环 | 🔲 待开发 |
-| 工具系统 | 🔲 待开发 |
-| RAG 去 LangChain 化 | 🔲 待开发 |
-| 前端联调 | 🔲 待开发 |
+| Phase | 模块 | 核心文件 | 状态 |
+|-------|------|---------|------|
+| 基础 | 模型推理 + 状态 + 提示词 + RAG | `harness/` | ✅ |
+| 1 | FastAPI 服务层 (6 端点 + SSE) | `server.py`, `api/` | ✅ |
+| 2 | 报告管线 (OCR→分类→联动) | `app/business/` | ✅ |
+| 3 | 解读引擎 + 来源引用 + 饮食建议 | `interpretation_engine.py` | ✅ |
+| 4 | SQLite 持久化 (3 表 + Repository) | `app/persistence/` | ✅ |
+| 5 | AgentLoop + 4 医疗工具 | `agent_loop.py`, `agent_tools.py` | ✅ |
+| 6 | OutputGuard 安全红线框架 | `app/safety/` | ✅ |
+| 7 | PaddleOCR 本地 OCR + 前端组件 | `paddle_ocr.py`, `components/` | ✅ |
+
+### 修改的原始文件
+
+| 文件 | 改动 | 影响 |
+|------|------|------|
+| `harness/llm_adapter/create_agent.py` | +`_safety_check()` + `agent_loop()` | 安全检测 + 多步推理 |
+| `harness/llm_adapter/chat_model.py` | +话题标签截断 + 流式停止检测 | 抑制小模型幻觉 |
+| `harness/long_memory/knowledge/rag_formatter.py` | +`extract_source_metadata()` | 结构化来源输出 |
+| `ai-services-python/ocr_service/main.py` | REDIS_HOST 支持环境变量 + 本地文件读取 | 本地开发兼容 |
+| `frontend-vue/vite.config.js` | 代理指向 :8000 + 新增 /v1 代理 | 对接新后端 |
+| `frontend-vue/src/App.vue` | 移除不存在的 intro.mp4 | 修复启动报错 |
+| `frontend-vue/src/services/ApiService.js` | 新增 10 个 API 方法 + 修复双 /api | 对接新后端 |
+| `frontend-vue/src/components/ChatWindow.vue` | 集成指标面板 + 上传组件 + 来源引用 | 业务页面 |
 
 ## 分支说明
 
 | 分支 | 说明 |
 |------|------|
 | `zly_3` | 原始分支，项目初始状态 |
-| `tbz_1` | 当前分支，包含上述所有代码修改 |
+| `tbz_1` | 当前分支，包含 Phase 1-7 全部开发 |
+
+## API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/v1/auth/register` | 用户注册 |
+| `POST` | `/api/v1/auth/login` | 用户登录 |
+| `GET` | `/api/v1/auth/me` | Token 验证 |
+| `POST` | `/api/chat` | 同步对话 |
+| `GET` | `/api/chat/stream` | SSE 流式对话 |
+| `GET` | `/api/chat/sources` | 来源引用查询 |
+| `POST` | `/api/report/upload` | 化验单上传+OCR |
+| `GET` | `/api/report/{id}` | 报告详情 |
+| `GET` | `/api/report/user/{id}/list` | 用户报告列表 |
+| `GET` | `/api/user/profile` | 获取用户画像 |
+| `PUT` | `/api/user/profile` | 更新用户画像 |
+| `POST` | `/api/user/reset` | 重置对话 |
+| `GET` | `/api/user/health` | 健康检查 |
+
+## Agent 工具
+
+| 工具名 | 功能 |
+|--------|------|
+| `reference_lookup` | 查询 40+ 指标参考范围 |
+| `calculate_egfr` | CKD-EPI 公式计算 eGFR + 分期 |
+| `search_knowledge` | 触发 RAG 医学知识检索 |
+| `analyze_indicator` | 单指标异常判定 + 临床意义 |

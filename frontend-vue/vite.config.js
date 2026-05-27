@@ -13,9 +13,8 @@ export default defineConfig({
     port: 8888,
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8000",
         changeOrigin: true,
-        // 关闭代理缓冲，SSE 流式响应必须实时转发
         configure: (proxy) => {
           proxy.on("proxyRes", (proxyRes) => {
             const ct = proxyRes.headers["content-type"] || "";
@@ -25,6 +24,10 @@ export default defineConfig({
             }
           });
         },
+      },
+      "/v1": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
       },
     },
   },

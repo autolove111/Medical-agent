@@ -123,6 +123,22 @@ class LabAgent:
             logger.warning("RAG query failed: %s", e)
             self.state.rag_context = ""
 
+    def _safety_check(self, reply: str) -> str:
+        """Phase 6: 安全红线检查 + 免责声明注入"""
+        try:
+            from app.safety.output_guard import get_output_guard
+            guard = get_output_guard()
+            report = guard.sanitize(reply)
+            safe = guard.inject_disclaimer(report.sanitized)
+            if report.blocked:
+                logger.warning("Output blocked by safety rules: %s", report.blocking_rules)
+            elif report.warnings:
+                logger.info("Output warnings: %s", report.warnings)
+            return safe
+        except Exception as e:
+            logger.warning("Safety check failed (output passed through): %s", e)
+            return reply
+
     def chat(self, user_input: str) -> str:
         """同步对话：发送用户输入，返回完整回复"""
         self.state.add_message(HumanMessage(content=user_input))
@@ -133,6 +149,9 @@ class LabAgent:
         # 从 state 组装四层 prompt，传给 ChatModel
         prompt = assemble_final_prompt(self.state)
         reply = self.chat_model.invoke(prompt)
+
+        # Phase 6: 安全红线 + 免责声明
+        reply = self._safety_check(reply)
 
         self.state.add_message(AssistantMessage(content=reply))
         return reply
@@ -152,6 +171,9 @@ class LabAgent:
             full_reply += chunk.content
             yield chunk
 
+        # Phase 6: 安全红线 + 免责声明（对完整回复执行）
+        full_reply = self._safety_check(full_reply)
+
         self.state.add_message(AssistantMessage(content=full_reply))
 
     def call_tool(self, tool_name: str, args: str) -> str:
@@ -166,6 +188,26 @@ class LabAgent:
         """注册新工具"""
         self.tools.append(tool)
         logger.info("Registered tool: %s", tool.name)
+
+    def agent_loop(self, user_input: str, max_steps: int = 5) -> str:
+        """
+        Agent 自主调度循环（Phase 5）
+
+        与 chat() 的区别：
+        - chat():     单次推理，简单问答
+        - agent_loop(): 多步推理，支持工具调用链
+
+        流程：输入 → 推理 → 检测工具调用 → 执行工具 → 再推理 → ... → 最终回复
+        """
+        from harness.llm_adapter.agent_loop import AgentLoop
+
+        loop = AgentLoop(
+            chat_model=self.chat_model,
+            state=self.state,
+            tools=self.tools if self.tools else None,
+            max_steps=max_steps,
+        )
+        return loop.run(user_input)
 
 
 def create_agent(

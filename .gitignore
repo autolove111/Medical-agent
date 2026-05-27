@@ -39,3 +39,13 @@ hf_cache/
 # Python cache
 __pycache__/
 *.pyc
+
+# Database
+data/
+reports/
+
+# Temp files
+docx_content.txt
+
+# Test images
+picture/
