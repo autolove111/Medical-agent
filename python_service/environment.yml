@@ -34,3 +34,8 @@ dependencies:
       - tenacity>=8.2.3
       - tiktoken>=0.12.0
       - psycopg2-binary>=2.9.12
+      - sqlalchemy>=2.0              # Phase 4: 持久化
+      - python-multipart>=0.0.6      # Phase 1: 文件上传
+      - langchain-community>=0.2.0   # RAG 检索层 (待去框架化)
+      - langchain-core>=0.2.0
+      - langchain-text-splitters>=0.2.0

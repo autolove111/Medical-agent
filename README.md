@@ -198,23 +198,29 @@ Medical-agent/
 
 ### 1. 创建环境并安装依赖
 
+项目使用 conda environment.yml 管理依赖，一条命令即可复现环境。
+
 ```powershell
-conda create -n medagent python=3.11 -y
-conda activate medagent
+# Python 后端环境 (medlab-langchain)
+cd Medical-agent/python_service
+conda env create -f environment.yml
 
-# PyTorch (CUDA 12.4)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+# OCR 服务环境 (medlab-ocr)
+cd Medical-agent/ai-services-python/ocr_service
+conda env create -f environment.yml
 
-# 核心依赖
-pip install transformers accelerate bitsandbytes sentencepiece
-pip install fastapi uvicorn pydantic pydantic-settings python-dotenv
-pip install sentence-transformers faiss-cpu
-pip install redis httpx requests tenacity tiktoken aiofiles sqlalchemy python-multipart
+# 前端依赖
+cd Medical-agent/frontend-vue
+npm install
+```
 
-# RAG 检索层
-pip install langchain-community langchain-core langchain-text-splitters
+如果已有环境，只更新新增依赖：
 
-# PaddleOCR 本地 OCR (Phase 7)
+```powershell
+conda activate medlab-langchain
+pip install sqlalchemy python-multipart langchain-community langchain-core langchain-text-splitters
+
+conda activate medlab-ocr
 pip install paddlepaddle==2.6.2 paddleocr==2.8.1
 ```
 
@@ -239,23 +245,23 @@ RAG_LOCAL_EMBEDDING_PATH=./models/bce-embedding-base_v1
 VECTOR_DB_PATH=./harness/long_memory/knowledge/vector_db
 ```
 
-### 4. 启动服务 (三终端)
+### 4. 启动服务（三终端）
 
 ```powershell
 # 终端 1: Python 后端
-conda activate medagent
-cd Medical-agent/python_service
+conda activate medlab-langchain
+cd python_service
 python server.py
 # → http://localhost:8000 (Swagger: /docs)
 
 # 终端 2: PaddleOCR 服务
-conda activate medagent
-cd Medical-agent/ai-services-python/ocr_service
+conda activate medlab-ocr
+cd ai-services-python/ocr_service
 python paddle_server.py
 # → http://localhost:8001 (首次启动自动下载 PP-OCRv4 模型 ~80MB)
 
 # 终端 3: 前端
-cd Medical-agent/frontend-vue
+cd frontend-vue
 npm install
 npm run dev
 # → http://localhost:8888
