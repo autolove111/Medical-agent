@@ -1,4 +1,4 @@
-name: medlab-ocr
+name: medagent-ocr
 channels:
   - conda-forge
   - defaults

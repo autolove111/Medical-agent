@@ -1,4 +1,4 @@
-name: medlab-langchain
+name: medagent
 channels:
   - conda-forge
   - defaults

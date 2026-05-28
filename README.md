@@ -198,31 +198,34 @@ Medical-agent/
 
 ### 1. 创建环境并安装依赖
 
-项目使用 conda environment.yml 管理依赖，一条命令即可复现环境。
+项目使用 conda environment.yml 管理依赖。**环境名可自定义**，不同开发者用不同名字不会冲突：
 
 ```powershell
-# Python 后端环境 (medlab-langchain)
+# Python 后端环境
 cd Medical-agent/python_service
-conda env create -f environment.yml
+conda env create -f environment.yml              # 默认名 medagent
+# 或用自定义名: conda env create -f environment.yml -n my-name
 
-# OCR 服务环境 (medlab-ocr)
+# OCR 服务环境
 cd Medical-agent/ai-services-python/ocr_service
-conda env create -f environment.yml
+conda env create -f environment.yml              # 默认名 medagent-ocr
+# 或用自定义名: conda env create -f environment.yml -n my-name-ocr
 
 # 前端依赖
 cd Medical-agent/frontend-vue
 npm install
 ```
 
-如果已有环境，只更新新增依赖：
-
-```powershell
-conda activate medlab-langchain
-pip install sqlalchemy python-multipart langchain-community langchain-core langchain-text-splitters
-
-conda activate medlab-ocr
-pip install paddlepaddle==2.6.2 paddleocr==2.8.1
-```
+> 如果你的环境已存在，用 `conda env update -f environment.yml` 增量更新。
+>
+> 如果已有环境但想保留自定义名，只需补装 Phase 1-7 新增的包：
+> ```powershell
+> conda activate <你的环境名>
+> pip install sqlalchemy python-multipart langchain-community langchain-core langchain-text-splitters
+> 
+> conda activate <你的OCR环境名>
+> pip install paddlepaddle==2.6.2 paddleocr==2.8.1
+> ```
 
 ### 2. 下载模型权重
 
@@ -249,13 +252,13 @@ VECTOR_DB_PATH=./harness/long_memory/knowledge/vector_db
 
 ```powershell
 # 终端 1: Python 后端
-conda activate medlab-langchain
+conda activate <你的Python环境名>   # 默认 medagent
 cd python_service
 python server.py
 # → http://localhost:8000 (Swagger: /docs)
 
 # 终端 2: PaddleOCR 服务
-conda activate medlab-ocr
+conda activate <你的OCR环境名>     # 默认 medagent-ocr
 cd ai-services-python/ocr_service
 python paddle_server.py
 # → http://localhost:8001 (首次启动自动下载 PP-OCRv4 模型 ~80MB)
