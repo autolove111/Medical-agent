@@ -240,7 +240,7 @@ def create_agent(
                 model_path = raw_path
         else:
             model_path = os.path.normpath(
-                os.path.join(_ENV_DIR, "..", "models", "Qwen2.5-7B-Instruct")
+                os.path.join(_ENV_DIR, "..", "..", "models", "Qwen2.5-7B-Instruct")
             )
 
     # Step 2: 创建用户画像

@@ -278,7 +278,10 @@ export default {
             const last = chatStore.messages[chatStore.messages.length - 1]
             if (last && last.role === "assistant") { last.content += chunk; scrollToBottom() }
           },
-          (e) => { console.error("Stream error:", e) },
+          (e) => {
+            console.error("Stream error:", e)
+            error.value = "服务响应异常: " + (e || "未知错误")
+          },
           (meta) => {
             const last = chatStore.messages[chatStore.messages.length - 1]
             if (last && last.role === "assistant" && meta) {
