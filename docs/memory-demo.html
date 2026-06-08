@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedLabAgent 记忆层架构分析 — 长/中/短期记忆全景演示</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card-hover: #222633;
+    --border: #2a2e3d;
+    --text: #e4e4e7;
+    --text-dim: #9ca3af;
+    --accent-blue: #3b82f6;
+    --accent-green: #22c55e;
+    --accent-orange: #f59e0b;
+    --accent-purple: #a855f7;
+    --accent-red: #ef4444;
+    --accent-cyan: #06b6d4;
+    --accent-pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+  .hero {
+    text-align: center;
+    padding: 60px 20px 40px;
+    background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  .hero p { color: var(--text-dim); font-size: 1.05rem; max-width: 760px; margin: 0 auto; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+  .section {
+    margin: 40px 0;
+    padding: 32px;
+    background: var(--card);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  .section h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section h2 .icon { font-size: 1.6rem; }
+  .section h3 { font-size: 1.15rem; margin: 20px 0 10px; color: var(--accent-cyan); }
+  .section p, .section li { color: var(--text-dim); }
+  .section ul { padding-left: 20px; }
+  .section li { margin-bottom: 6px; }
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 2px 4px 2px 0;
+  }
+  .tag-blue { background: rgba(59,130,246,.15); color: var(--accent-blue); }
+  .tag-green { background: rgba(34,197,94,.15); color: var(--accent-green); }
+  .tag-orange { background: rgba(245,158,11,.15); color: var(--accent-orange); }
+  .tag-purple { background: rgba(168,85,247,.15); color: var(--accent-purple); }
+  .tag-red { background: rgba(239,68,68,.15); color: var(--accent-red); }
+  .tag-cyan { background: rgba(6,182,212,.15); color: var(--accent-cyan); }
+  .tag-pink { background: rgba(236,72,153,.15); color: var(--accent-pink); }
+
+  .layer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+    margin-top: 16px;
+  }
+  .layer-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: all 0.3s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .layer-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .layer-card.stm::before { background: var(--accent-orange); }
+  .layer-card.ltm::before { background: var(--accent-purple); }
+  .layer-card.ltm-p1::before { background: var(--accent-pink); }
+  .layer-card.ltm-p2::before { background: var(--accent-blue); }
+  .layer-card.ltm-p3::before { background: var(--accent-cyan); }
+  .layer-card.ltm-p4::before { background: var(--accent-green); }
+  .layer-card:hover { border-color: var(--accent-blue); transform: translateY(-2px); }
+  .layer-card h3 { margin-top: 0; }
+
+  .storage-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.92rem;
+  }
+  .storage-table th, .storage-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .storage-table th {
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .storage-table tr:hover td { background: var(--card-hover); }
+
+  .flow-diagram { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+  .flow-step { display: flex; align-items: flex-start; gap: 16px; }
+  .flow-dot-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .flow-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid;
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .flow-line { width: 2px; flex-grow: 1; min-height: 20px; background: var(--border); }
+  .flow-content {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    flex: 1;
+    transition: all 0.3s;
+  }
+  .flow-content:hover { border-color: var(--accent-blue); }
+  .flow-content .step-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+  .flow-content .step-desc { color: var(--text-dim); font-size: 0.88rem; }
+
+  .demo-area {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 16px;
+  }
+  .demo-controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .demo-btn {
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.88rem;
+    transition: all 0.2s;
+  }
+  .demo-btn:hover { border-color: var(--accent-blue); background: var(--card-hover); }
+  .demo-btn.active { border-color: var(--accent-blue); background: rgba(59,130,246,.15); color: var(--accent-blue); }
+  .demo-btn.danger { border-color: var(--accent-red); }
+  .demo-btn.danger:hover { background: rgba(239,68,68,.15); color: var(--accent-red); }
+
+  .chat-window {
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+  }
+  .chat-msg {
+    margin-bottom: 10px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    max-width: 80%;
+    animation: fadeIn 0.3s;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .chat-msg.user {
+    background: rgba(59,130,246,.12);
+    border: 1px solid rgba(59,130,246,.2);
+    margin-left: auto;
+    text-align: right;
+  }
+  .chat-msg.assistant {
+    background: rgba(34,197,94,.08);
+    border: 1px solid rgba(34,197,94,.15);
+  }
+  .chat-msg.system {
+    background: rgba(245,158,11,.08);
+    border: 1px solid rgba(245,158,11,.15);
+    font-style: italic;
+    font-size: 0.85rem;
+    text-align: center;
+    max-width: 100%;
+  }
+  .chat-msg .role-label { font-size: 0.75rem; font-weight: 700; margin-bottom: 3px; opacity: 0.7; }
+
+  .state-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  @media (max-width: 700px) { .state-panel { grid-template-columns: 1fr; } }
+  .state-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 0.85rem;
+  }
+  .state-box h4 {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .state-box .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+  }
+  .state-box .stat-label { color: var(--text-dim); }
+  .state-box .stat-value { font-weight: 600; }
+
+  .progress-bar {
+    height: 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.88rem;
+  }
+  .compare-table th, .compare-table td {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .compare-table th {
+    background: var(--bg);
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+  }
+  .compare-table td:first-child { text-align: left; font-weight: 600; }
+  .compare-table .check { color: var(--accent-green); }
+  .compare-table .cross { color: var(--accent-red); opacity: 0.6; }
+
+  .improve-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .improve-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    border-left: 3px solid;
+  }
+  .improve-card.c1 { border-left-color: var(--accent-red); }
+  .improve-card.c2 { border-left-color: var(--accent-orange); }
+  .improve-card.c3 { border-left-color: var(--accent-blue); }
+  .improve-card.c4 { border-left-color: var(--accent-purple); }
+  .improve-card h4 { margin-bottom: 8px; font-size: 0.95rem; }
+  .improve-card p { font-size: 0.85rem; color: var(--text-dim); }
+
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    color: #c9d1d9;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.5;
+  }
+  .code-block .comment { color: #8b949e; }
+  .code-block .keyword { color: #ff7b72; }
+  .code-block .string { color: #a5d6ff; }
+  .code-block .type { color: #79c0ff; }
+
+  .footer {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* LTM 4-part diagram */
+  .ltm-arch-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .ltm-part {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: all 0.3s;
+  }
+  .ltm-part:hover { border-color: var(--accent-purple); transform: translateX(4px); }
+  .ltm-part .part-num {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .ltm-part .part-body h4 { margin-bottom: 4px; font-size: 0.95rem; }
+  .ltm-part .part-body p { font-size: 0.85rem; color: var(--text-dim); }
+  .ltm-part .part-body .fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== HERO ==================== -->
+<div class="hero">
+  <h1>🧠 MedLabAgent 记忆层架构全景分析</h1>
+  <p>基于 Claude / Hermes / CrewAI / OpenClaw 四大框架的设计理念，结合本项目实际实现，从长、中、短期记忆三维度深度剖析</p>
+</div>
+
+<div class="container">
+
+<!-- ==================== 1. 长期记忆（四部分架构） ==================== -->
+<div class="section">
+  <h2><span class="icon">🏛️</span> 一、长期记忆（LTM）— 跨会话持久化，四部分架构</h2>
+  <p>长期记忆负责跨会话持久化存储患者所有信息，采用<strong>关系数据库为主体，辅以向量检索能力</strong>（如 pgvector 扩展）。逻辑上分为四块：</p>
+
+  <div class="ltm-arch-diagram">
+    <!-- Part 1 -->
+    <div class="ltm-part">
+      <div class="part-num" style="background:rgba(236,72,153,.15);color:var(--accent-pink)">P1</div>
+      <div class="part-body">
+        <h4>用户画像 <span class="tag tag-pink">跨会话共享 · 每人一条</span></h4>
+        <p>存储患者一生不变的静态信息，每个患者只有一条记录，每次对话开始时<strong>全量加载</strong>到短期记忆的工作缓存中。</p>
+        <div class="fields">
+          <span class="tag tag-pink">身份标识(脱敏ID)</span>
+          <span class="tag tag-pink">年龄</span>
+          <span class="tag tag-pink">性别</span>
+          <span class="tag tag-pink">血型</span>
+          <span class="tag tag-pink">慢性病</span>
+          <span class="tag tag-pink">手术史</span>
+          <span class="tag tag-pink">过敏史</span>
+          <span class="tag tag-pink">长期用药</span>
+          <span class="tag tag-pink">家族史</span>
+          <span class="tag tag-pink">生活习惯</span>
+        </div>
+        <div class="code-block" style="margin-top:8px">
+<span class="comment">-- PostgreSQL: patient_profile 表</span>
+patient_id (PK), name, age, gender, blood_type,
+height, weight, allergies (JSON), chronic_diseases (JSON),
+medications (JSON), family_history (JSON), lifestyle (JSON)
+        </div>
+      </div>
+    </div>
+
+    <!-- Part 2 -->
+    <div class="ltm-part">
+      <div class="part-num" style="background:rgba(59,130,246,.15);color:var(--accent-blue)">P2</div>
+      <div class="part-body">
+        <h4>时间轴快照 <span class="tag tag-blue">事件级 · 按时间存储</span></h4>
+        <p>最细粒度的长期记忆，记录每次对话中产生的重要事件，每个事件带精确时间戳和所属会话ID。支持<strong>时间范围查询</strong>和<strong>语义相似度检索</strong>两种模式。</p>
+        <div class="fields">
+          <span class="tag tag-blue">症状描述</span>
+          <span class="tag tag-blue">化验单结果</span>
+          <span class="tag tag-blue">影像检查报告</span>
+          <span class="tag tag-blue">用药变更</span>
+          <span class="tag tag-blue">医生诊断与建议</span>
+          <span class="tag tag-blue">关键摘要快照</span>
+        </div>
+        <div class="code-block" style="margin-top:8px">
+<span class="comment">-- session_data 表 (event_type = symptom / lab_result / imaging)</span>
+patient_id, session_id, event_type, content, raw_data (JSON), created_at
+<span class="comment">-- 索引: patient_id + created_at 支持时间范围查询</span>
+<span class="comment">-- pgvector 扩展支持语义相似度检索</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Part 3 -->
+    <div class="ltm-part">
+      <div class="part-num" style="background:rgba(6,182,212,.15);color:var(--accent-cyan)">P3</div>
+      <div class="part-body">
+        <h4>对话历史消息 <span class="tag tag-cyan">原始记录 · 有保留策略</span></h4>
+        <p>从短期记忆"存档"下来的完整对话原文。每条消息标记所属会话ID和轮次编号。设置保留策略控制存储膨胀：</p>
+        <ul>
+          <li>近期（90天内）的消息保留全文</li>
+          <li>超过90天的消息被删除，但关键信息已在 P2 中以事件形式保留，不会完全丢失</li>
+        </ul>
+        <div class="code-block" style="margin-top:8px">
+<span class="comment">-- session_data 表 (event_type = message)</span>
+patient_id, session_id, event_type='message', role (user/assistant), turn_id, content
+<span class="comment">-- 保留策略: created_at > 90天 的记录定期清理</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Part 4 -->
+    <div class="ltm-part">
+      <div class="part-num" style="background:rgba(34,197,94,.15);color:var(--accent-green)">P4</div>
+      <div class="part-body">
+        <h4>会话总结 <span class="tag tag-green">每个会话一条 · 高层聚合</span></h4>
+        <p>每个会话结束后，由 LLM 根据完整对话历史和产生的事件生成一份高度精炼的总结（200字左右），包含：</p>
+        <div class="fields">
+          <span class="tag tag-green">主诉</span>
+          <span class="tag tag-green">关键症状变化</span>
+          <span class="tag tag-green">医生建议</span>
+          <span class="tag tag-green">患者疑问</span>
+          <span class="tag tag-green">已执行检查/用药</span>
+          <span class="tag tag-green">待跟进事项</span>
+        </div>
+        <div class="code-block" style="margin-top:8px">
+<span class="comment">-- session_data 表 (event_type = summary)</span>
+patient_id, session_id, event_type='summary', content='200字总结...'
+<span class="comment">-- 不替代时间轴事件，提供高层视图，快速了解某次就诊概貌</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>四部分的关系</h3>
+  <ul>
+    <li><strong>第一部分</strong>是静态基础，所有会话共享。</li>
+    <li><strong>第二部分</strong>是事件流水，按时间线存储所有重要节点。</li>
+    <li><strong>第三部分</strong>是原始素材，必要时可回溯完整对话（但有期限）。</li>
+    <li><strong>第四部分</strong>是会话摘要，是对第三部分和第二部分的高层聚合。</li>
+  </ul>
+  <p style="margin-top:8px">当需要回答"患者上次就诊说了什么"时，<strong>优先查看第四部分（会话总结）和第二部分（关键事件）</strong>；只有需要还原完整语境时，才去翻阅第三部分。</p>
+
+  <h3>为什么这样设计？</h3>
+  <ul>
+    <li><strong>为什么不永久保存全部对话原文？</strong> 存储成本高，且大部分信息是冗余的。通过时间轴事件和会话总结，已经能保留核心医疗事实。</li>
+    <li><strong>为什么还要第三部分（原始消息）？</strong> 因为有些时候需要回溯完整语境，比如审核 AI 是否犯错，或者患者对之前某句话有争议。设置 90 天的保留期，既满足短期审计需求，又控制成本。</li>
+    <li><strong>为什么不直接用向量数据库替代关系数据库？</strong> 向量检索擅长语义匹配，但不擅长精确的时间范围查询、结构化过滤、事务更新。关系数据库（如 PostgreSQL）配合 pgvector 可以同时提供两种能力，简化架构。</li>
+  </ul>
+</div>
+
+<!-- ==================== 2. 短期记忆 ==================== -->
+<div class="section">
+  <h2><span class="icon">⚡</span> 二、短期记忆（STM）— 当前会话的热数据</h2>
+  <p>短期记忆存在于每个会话的整个生命周期内，存储在内存/缓存中，会话结束即释放（或压缩后写入长期记忆）。包含三个组件：</p>
+
+  <div class="layer-grid">
+    <!-- 对话轮次缓冲区 -->
+    <div class="layer-card stm" onclick="toggleDetail('stm-buffer-detail')">
+      <h3>💬 对话轮次缓冲区</h3>
+      <p><strong>存什么：</strong>保留最近 N 轮对话的完整原文（按 token 数量限制，软上限 10K tokens）</p>
+      <p style="margin-top:8px"><strong>用什么存：</strong><span class="tag tag-orange">Redis</span> + <span class="tag tag-green">Python dict L1 缓存</span></p>
+      <p style="margin-top:8px"><strong>为什么用 Redis 而不是纯内存 dict：</strong></p>
+      <ul>
+        <li>进程崩溃后可恢复（Redis 持久化 + 24h TTL）</li>
+        <li>支持跨进程/多服务器共享状态</li>
+        <li>原生 TTL 自动过期，无需手动清理</li>
+      </ul>
+      <p style="margin-top:8px"><strong>为什么还留一个 Python dict：</strong></p>
+      <ul>
+        <li>作为 L1 缓存：同一进程内频繁访问时直接从 dict 读，避免每次 Redis 序列化/反序列化</li>
+        <li>写入时同时更新 dict + Redis，保证一致性</li>
+      </ul>
+      <div id="stm-buffer-detail" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
+        <p><strong>压缩策略（滑动窗口）：</strong></p>
+        <ul>
+          <li>先入先出队列，超过限制时最早的轮次被压缩</li>
+          <li>被压缩的消息由 LLM 生成 200-300 字医学摘要</li>
+          <li>摘要作为系统消息保留在缓冲区头部</li>
+          <li>原始文本从短期记忆中丢弃，但已归档到长期记忆</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 状态跟踪器 -->
+    <div class="layer-card stm" onclick="toggleDetail('stm-state-detail')">
+      <h3>📋 状态跟踪器</h3>
+      <p><strong>存什么：</strong>结构化的键值对，记录本次问诊的进度</p>
+      <div style="margin-top:8px">
+        <span class="tag tag-orange">已收集的信息</span>
+        <span class="tag tag-orange">待确认的信息</span>
+        <span class="tag tag-orange">中间结论</span>
+        <span class="tag tag-orange">问诊阶段</span>
+      </div>
+      <p style="margin-top:8px"><strong>工作方式：</strong>随着每轮对话动态更新，构建提示时一并提供给 LLM，使其清楚当前处于问诊的哪个阶段。</p>
+      <div id="stm-state-detail" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
+        <p><strong>问诊阶段追踪：</strong></p>
+        <ul>
+          <li>greeting → history_taking → symptom_inquiry → examination_suggestion → conclusion</li>
+          <li>由 LLM 驱动的 StateTrackerEngine 每轮更新状态 JSON</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Token 预算分配器 -->
+    <div class="layer-card stm" onclick="toggleDetail('stm-budget-detail')">
+      <h3>💰 Token 预算分配器</h3>
+      <p><strong>是什么：</strong>逻辑组件，位于短期记忆和 LLM 之间，按优先级填充上下文窗口</p>
+      <p style="margin-top:8px"><strong>优先级（从高到低）：</strong></p>
+      <ul>
+        <li>P1：系统提示词（角色、规则）— 固定</li>
+        <li>P2：用户当前输入 — 固定</li>
+        <li>P3：从长期记忆中检索到的相关片段（Top-3~5）— 可裁剪</li>
+        <li>P4：短期记忆中的最近几轮对话 — 可裁剪</li>
+        <li>P5：当前会话状态跟踪器 — 可裁剪</li>
+      </ul>
+      <div id="stm-budget-detail" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
+        <p><strong>超限处理：</strong>从最低优先级开始截断或压缩。历史摘要是 P4 的一部分，空间紧张时可进一步压缩或丢弃。</p>
+        <p style="margin-top:8px"><strong>紧急压缩：</strong>如果必须保留高优先级内容但已超限，将多轮对话合并成更短摘要，或减少 LTM 召回数量。</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>为什么短期记忆不直接把所有历史对话都保留？</h3>
+  <p>LLM 的上下文窗口有限（本项目 Qwen2.5-7B 为 32K tokens），而且如果信息量过大，模型容易被噪声干扰。压缩早期对话为摘要，可以在有限空间里保留更长的时间跨度。</p>
+</div>
+
+<!-- ==================== 3. 长期记忆检索与融合 ==================== -->
+<div class="section">
+  <h2><span class="icon">🔍</span> 三、长期记忆的检索与融合（RAG）</h2>
+  <p>在每轮对话中，Agent 不会被动等待用户提问全部历史，而是<strong>主动根据当前对话状态生成检索查询</strong>。</p>
+
+  <div class="layer-grid">
+    <div class="layer-card ltm">
+      <h3>🕐 检索触发时机</h3>
+      <ul>
+        <li>用户每次输入后，<strong>立即触发</strong></li>
+        <li>如果状态跟踪器中标记了"需要补充信息"，也会额外生成针对该症状的检索</li>
+      </ul>
+    </div>
+
+    <div class="layer-card ltm">
+      <h3>🔄 查询生成策略</h3>
+      <ul>
+        <li>直接使用用户当前输入作为基础查询</li>
+        <li>从状态跟踪器中提取实体（症状名、药名）作为补充查询</li>
+        <li>同义词扩展（如"头痛"→"偏头痛""头胀"）</li>
+      </ul>
+    </div>
+
+    <div class="layer-card ltm">
+      <h3>📡 多路召回</h3>
+      <ul>
+        <li><strong>向量检索：</strong>查询文本向量化，与 P2 事件向量做相似度匹配</li>
+        <li><strong>结构化检索：</strong>含时间范围/事件类型时，通过数据库索引精确过滤</li>
+        <li><strong>知识图谱（可选）：</strong>查询药物-症状-疾病关系</li>
+      </ul>
+    </div>
+
+    <div class="layer-card ltm">
+      <h3>📊 结果重排序</h3>
+      <p>各路召回结果合并后，按以下维度重排序，选取 Top-5 进入上下文：</p>
+      <ul>
+        <li>语义相似度</li>
+        <li>时间新鲜度（近期事件权重略高）</li>
+        <li>事件重要性（如"过敏史"比"一般主诉"更重要）</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>与短期记忆的融合</h3>
+  <p>构造最终 LLM 提示时：<strong>先放系统指令和用户输入 → 再放重排序后的长期记忆片段 → 最后放短期记忆中的最近几轮对话</strong>。这样设计是因为长期记忆提供事实背景，短期记忆负责连贯性；如果先放短期记忆，LLM 可能会被最近的对话带偏，忽略历史关键信息。</p>
+</div>
+
+<!-- ==================== 4. 数据生命周期 ==================== -->
+<div class="section">
+  <h2><span class="icon">♻️</span> 四、数据生命周期管理</h2>
+
+  <h3>写入时机</h3>
+  <table class="storage-table">
+    <thead>
+      <tr><th>时机</th><th>操作</th><th>写入目标</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>对话进行中</strong></td>
+        <td>用户输入和 Agent 回答实时追加；状态跟踪器更新</td>
+        <td>STM（Redis）</td>
+      </tr>
+      <tr>
+        <td><strong>触发压缩时</strong></td>
+        <td>最早对话 → LLM 生成摘要 → 摘要替换原消息，同时归档原文</td>
+        <td>STM 摘要 + LTM P3（对话原文）+ P2（摘要快照）</td>
+      </tr>
+      <tr>
+        <td><strong>会话结束时</strong></td>
+        <td>① 生成会话总结 → P4<br>② 提取事件（症状/用药/检查）→ P2<br>③ 更新用户画像 → P1<br>④ 保存完整对话原文 → P3<br>⑤ 清空 STM</td>
+        <td>LTM 全部四部分</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>遗忘机制</h3>
+  <ul>
+    <li><strong>时间衰减：</strong>超过一定时间（如两年）且访问频次极低的非关键事件，可以从 P2 中删除</li>
+    <li><strong>强制保留：</strong>标记为"重要"的事件（如恶性肿瘤、严重过敏）<strong>永不删除</strong></li>
+    <li><strong>摘要替代：</strong>对于普通对话原文（P3），超过保留期后删除，但其关键信息已以事件形式存在于 P2，不会完全丢失</li>
+  </ul>
+</div>
+
+<!-- ==================== 5. 与四大框架对比 ==================== -->
+<div class="section">
+  <h2><span class="icon">⚔️</span> 五、与四大框架设计对比</h2>
+
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>设计维度</th>
+        <th>Claude</th>
+        <th>Hermes</th>
+        <th>CrewAI</th>
+        <th>OpenClaw</th>
+        <th style="color:var(--accent-green)">MedLabAgent (本项目)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>短期记忆存储</td>
+        <td>上下文窗口</td>
+        <td>SQLite FTS5</td>
+        <td>Redis</td>
+        <td>Markdown 文件</td>
+        <td class="check">Redis + dict L1 缓存 + 滑动窗口</td>
+      </tr>
+      <tr>
+        <td>压缩触发</td>
+        <td>Auto-Compact（阈值触发）</td>
+        <td>有限容量倒逼</td>
+        <td>任务完成自动</td>
+        <td>LLM 自主决定</td>
+        <td class="check">Token 超 10K 自动触发</td>
+      </tr>
+      <tr>
+        <td>短→长转化</td>
+        <td>Dreams（异步离线，24h+）</td>
+        <td>任务后复盘 + Curator</td>
+        <td>任务完成后同步提取</td>
+        <td>LLM 主动写文件</td>
+        <td class="check">压缩时同步归档 + 会话结束批量写入</td>
+      </tr>
+      <tr>
+        <td>长→短检索</td>
+        <td>Memory Files 按需注入</td>
+        <td>冻结加载 + 技能按需</td>
+        <td>自适应深度召回</td>
+        <td>全量加载 MEMORY.md</td>
+        <td class="check">画像全量加载 + RAG 语义检索 + 结构化过滤</td>
+      </tr>
+      <tr>
+        <td>多 Agent 共享</td>
+        <td class="cross">✗</td>
+        <td class="cross">✗</td>
+        <td class="check">✓ scope 机制</td>
+        <td class="cross">✗</td>
+        <td class="cross">✗（单 Agent）</td>
+      </tr>
+      <tr>
+        <td>质量控制</td>
+        <td>用户审核 DREAMS.md</td>
+        <td>有限容量 + 安全扫描</td>
+        <td>冲突检测 + consolidation</td>
+        <td class="cross">无原生控制</td>
+        <td class="check">规则提取 + LLM 摘要双保险</td>
+      </tr>
+      <tr>
+        <td>长期记忆结构</td>
+        <td>会话存档 + Memory Files</td>
+        <td>MEMORY.md + 技能卡 + Honcho</td>
+        <td>语义/情景/实体/共享 四类记忆</td>
+        <td>MEMORY.md + 向量库</td>
+        <td class="check">四部分：画像 + 事件 + 原文 + 总结</td>
+      </tr>
+      <tr>
+        <td>医疗专属设计</td>
+        <td class="cross">通用</td>
+        <td class="cross">通用</td>
+        <td class="cross">通用</td>
+        <td class="cross">通用</td>
+        <td class="check">✓ 医学摘要模板 + 事件提取 + 参考范围库 + 遗忘保护</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== 6. 数据流交互全景 ==================== -->
+<div class="section">
+  <h2><span class="icon">🔄</span> 六、数据流交互全景 — 一轮对话的完整旅程</h2>
+
+  <div class="flow-diagram" id="flow-diagram"></div>
+</div>
+
+<!-- ==================== 7. Token 预算分配 ==================== -->
+<div class="section">
+  <h2><span class="icon">💰</span> 七、Token 预算分配策略</h2>
+  <p>上下文窗口 32,768 tokens，按优先级分层填充：</p>
+
+  <div style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span>P1 系统指令（固定，含用户画像）</span>
+      <span class="tag tag-red">~2,000 tokens</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:10%;background:var(--accent-red)"></div></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;margin-top:12px">
+      <span>P2 用户输入（固定）</span>
+      <span class="tag tag-orange">~500 tokens</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:3%;background:var(--accent-orange)"></div></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;margin-top:12px">
+      <span>P3 RAG + LTM 检索结果（可裁剪，上限 1500 字）</span>
+      <span class="tag tag-cyan">~2,000 tokens</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:10%;background:var(--accent-cyan)"></div></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;margin-top:12px">
+      <span>P4 STM 近期对话（可裁剪，最近 5 轮）</span>
+      <span class="tag tag-blue">~5,000 tokens</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:25%;background:var(--accent-blue)"></div></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;margin-top:12px">
+      <span>P5 状态跟踪器（可裁剪）</span>
+      <span class="tag tag-purple">~500 tokens</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:3%;background:var(--accent-purple)"></div></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;margin-top:12px">
+      <span style="color:var(--accent-green)">✓ 剩余可用（输出 + 缓冲）</span>
+      <span class="tag tag-green">~22,768 tokens</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:70%;background:var(--accent-green)"></div></div>
+  </div>
+</div>
+
+<!-- ==================== 8. 交互式演示 ==================== -->
+<div class="section">
+  <h2><span class="icon">🎮</span> 八、交互式记忆流程演示</h2>
+  <p>点击按钮模拟一轮医疗对话，观察记忆层如何交互：</p>
+
+  <div class="demo-area">
+    <div class="demo-controls">
+      <button class="demo-btn active" onclick="sendDemoMessage()">💬 发送消息</button>
+      <button class="demo-btn" onclick="triggerCompress()">🗜️ 触发压缩</button>
+      <button class="demo-btn" onclick="endSession()">🏁 结束会话</button>
+      <button class="demo-btn danger" onclick="resetDemo()">🔄 重置</button>
+    </div>
+
+    <div class="chat-window" id="chat-window">
+      <div class="chat-msg system">
+        <div class="role-label">SYSTEM</div>
+        会话已启动。LTM P1 画像已加载到系统提示词，STM 缓冲区已初始化。
+      </div>
+    </div>
+
+    <div class="state-panel">
+      <div class="state-box">
+        <h4>⚡ 短期记忆 (Redis + dict)</h4>
+        <div class="stat-row">
+          <span class="stat-label">消息数</span>
+          <span class="stat-value" id="stm-msg-count">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Token 用量</span>
+          <span class="stat-value" id="stm-tokens">0 / 10,000</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">摘要</span>
+          <span class="stat-value" id="stm-summary">无</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">问诊阶段</span>
+          <span class="stat-value" id="stm-phase">greeting</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="stm-progress" style="width:0%;background:var(--accent-orange)"></div>
+        </div>
+      </div>
+
+      <div class="state-box">
+        <h4>🏛️ 长期记忆 (PostgreSQL)</h4>
+        <div class="stat-row">
+          <span class="stat-label">P1 画像</span>
+          <span class="stat-value" id="ltm-profile">张三, 45岁, 男</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">P2 事件</span>
+          <span class="stat-value" id="ltm-events">3 条</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">P3 对话存档</span>
+          <span class="stat-value" id="ltm-archives">2 个会话</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">P4 会话总结</span>
+          <span class="stat-value" id="ltm-summaries">2 条</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">RAG 检索</span>
+          <span class="stat-value" id="ltm-rag">待命中</span>
+        </div>
+      </div>
+
+      <div class="state-box">
+        <h4>🔍 本次会话归档</h4>
+        <div class="stat-row">
+          <span class="stat-label">压缩归档消息</span>
+          <span class="stat-value" id="mtm-archived">0 条</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">会话总结</span>
+          <span class="stat-value" id="mtm-summary">未生成</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">提取事件</span>
+          <span class="stat-value" id="mtm-events">0 条</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">画像更新</span>
+          <span class="stat-value" id="mtm-profile-update">无变更</span>
+        </div>
+      </div>
+
+      <div class="state-box">
+        <h4>💰 Token 预算</h4>
+        <div class="stat-row">
+          <span class="stat-label">P1 系统指令</span>
+          <span class="stat-value">~2,000</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">P2 用户输入</span>
+          <span class="stat-value" id="budget-input">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">P3 RAG + LTM</span>
+          <span class="stat-value" id="budget-rag">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">P4 STM 历史</span>
+          <span class="stat-value" id="budget-stm">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">总用量 / 可用</span>
+          <span class="stat-value" id="budget-total">0 / 19,660</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 9. 改进建议 ==================== -->
+<div class="section">
+  <h2><span class="icon">🚀</span> 九、改进建议</h2>
+  <p>对比四大框架的设计理念，结合本项目实际，提出以下改进方向：</p>
+
+  <div class="improve-grid">
+    <div class="improve-card c1">
+      <h4>🔴 P0：引入 Dreams 式离线整合</h4>
+      <p><strong>问题：</strong>当前短→长转化是同步的，会话结束时一次性提取，可能遗漏跨会话模式（如"患者每次都说头晕"）。</p>
+      <p style="margin-top:8px"><strong>改进：</strong>借鉴 Claude 的 Dreams 机制，在空闲期对多个会话存档进行跨会话模式识别，自动发现患者就诊规律、症状演变趋势。</p>
+      <p style="margin-top:8px"><span class="tag tag-purple">对标 Claude</span> <span class="tag tag-blue">异步后台</span></p>
+    </div>
+
+    <div class="improve-card c2">
+      <h4>🟠 P1：增加记忆衰减与访问增益</h4>
+      <p><strong>问题：</strong>当前事件存储是"只增不删"的，长期运行后检索噪声越来越大。</p>
+      <p style="margin-top:8px"><strong>改进：</strong>借鉴 Claude 的差分衰减机制，对不同类型事件设置衰减率（症状 7%/天，化验 2%/天），被检索到的记忆获得增益。关键事件（过敏、恶性肿瘤）标记为"永不衰减"。</p>
+      <p style="margin-top:8px"><span class="tag tag-purple">对标 Claude</span> <span class="tag tag-orange">用进废退</span></p>
+    </div>
+
+    <div class="improve-card c3">
+      <h4>🔵 P2：增加技能记忆层</h4>
+      <p><strong>问题：</strong>当前系统每次遇到类似问题都从零推理，没有"学会"可复用的处理模式。</p>
+      <p style="margin-top:8px"><strong>改进：</strong>借鉴 Hermes 的技能记忆机制，当 Agent 成功处理一类问题（如"解读肾功能报告"）后，自动提炼为技能文件，下次遇到类似任务时按需加载。</p>
+      <p style="margin-top:8px"><span class="tag tag-green">对标 Hermes</span> <span class="tag tag-cyan">程序性记忆</span></p>
+    </div>
+
+    <div class="improve-card c4">
+      <h4>🟣 P3：CrewAI 式自适应深度召回</h4>
+      <p><strong>问题：</strong>当前 RAG 检索固定 Top-K=3，可能漏掉重要但排名靠后的记忆。</p>
+      <p style="margin-top:8px"><strong>改进：</strong>借鉴 CrewAI 的自适应召回策略——先浅层检索（Top-5），置信度低于阈值自动扩大范围（Top-20），甚至沿实体关系图谱扩展一跳。</p>
+      <p style="margin-top:8px"><span class="tag tag-red">对标 CrewAI</span> <span class="tag tag-blue">自适应深度</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 10. 持久化方法构想 ==================== -->
+<div class="section">
+  <h2><span class="icon">🏗️</span> 十、持久化方法构想</h2>
+  <p>当前项目已实现 2 张核心表覆盖全部需求，以下是对未来持久化架构的进一步构想：</p>
+
+  <h3>当前架构（已实现）</h3>
+  <div class="code-block">
+<span class="comment">-- 2 张表覆盖全部需求</span>
+
+<span class="keyword">TABLE</span> <span class="type">patient_profile</span>   <span class="comment">-- P1: 患者画像（每人一条）</span>
+  patient_id (PK), name, age, gender, blood_type,
+  height, weight, allergies (JSON), chronic_diseases (JSON),
+  medications (JSON), family_history (JSON), lifestyle (JSON)
+
+<span class="keyword">TABLE</span> <span class="type">session_data</span>      <span class="comment">-- P2+P3+P4: 统一会话表</span>
+  id (auto PK), patient_id (indexed), session_id (indexed),
+  event_type (indexed: message / lab_result / symptom / summary),
+  role, turn_id, content (Text), raw_data (JSON), created_at
+  </div>
+
+  <h3>构想一：pgvector 扩展 — 向量检索能力</h3>
+  <p>在 session_data 表上增加 embedding 列，利用 PostgreSQL 的 pgvector 扩展实现<strong>原生语义检索</strong>，无需独立的向量数据库：</p>
+  <div class="code-block">
+<span class="comment">-- 在 session_data 上增加向量列</span>
+<span class="keyword">ALTER TABLE</span> session_data <span class="keyword">ADD COLUMN</span> embedding vector(768);
+
+<span class="comment">-- 创建 HNSW 索引（高性能近似最近邻）</span>
+<span class="keyword">CREATE INDEX</span> idx_session_embedding
+  <span class="keyword">ON</span> session_data <span class="keyword">USING</span> hnsw (embedding vector_cosine_ops);
+
+<span class="comment">-- 语义检索 + 结构化过滤一体化查询</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> session_data
+<span class="keyword">WHERE</span> patient_id = <span class="string">'p001'</span>
+  <span class="keyword">AND</span> event_type <span class="keyword">IN</span> (<span class="string">'symptom'</span>, <span class="string">'lab_result'</span>)
+  <span class="keyword">AND</span> created_at > now() - interval <span class="string">'90 days'</span>
+<span class="keyword">ORDER BY</span> embedding &lt;=&gt; <span class="string">'[查询向量]'</span>::vector
+<span class="keyword">LIMIT</span> 5;
+  </div>
+
+  <h3>构想二：自动归档与清理策略</h3>
+  <div class="code-block">
+<span class="comment">-- 定时任务：清理超过 90 天的对话原文（P3）</span>
+<span class="comment">-- 关键信息已在 P2（事件）和 P4（总结）中保留</span>
+<span class="keyword">DELETE FROM</span> session_data
+<span class="keyword">WHERE</span> event_type = <span class="string">'message'</span>
+  <span class="keyword">AND</span> created_at &lt; now() - interval <span class="string">'90 days'</span>;
+
+<span class="comment">-- 定时任务：衰减非关键事件（可选）</span>
+<span class="comment">-- 对超过 2 年且未被检索过的普通症状事件归档</span>
+<span class="keyword">UPDATE</span> session_data
+<span class="keyword">SET</span> event_type = <span class="string">'archived_symptom'</span>
+<span class="keyword">WHERE</span> event_type = <span class="string">'symptom'</span>
+  <span class="keyword">AND</span> created_at &lt; now() - interval <span class="string">'2 years'</span>
+  <span class="keyword">AND</span> raw_data->><span class="string">'importance'</span> &lt; <span class="string">'7'</span>;
+  </div>
+
+  <h3>构想三：跨会话模式发现（Dreams 式离线整合）</h3>
+  <div class="code-block">
+<span class="comment">-- 后台任务：定期分析患者就诊模式</span>
+<span class="comment">-- 输入：某患者最近 N 个会话的总结（P4）和事件（P2）</span>
+<span class="comment">-- 输出：就诊规律、症状演变趋势、用药效果评估</span>
+
+<span class="keyword">SELECT</span> session_id, content, created_at
+<span class="keyword">FROM</span> session_data
+<span class="keyword">WHERE</span> patient_id = <span class="string">'p001'</span>
+  <span class="keyword">AND</span> event_type = <span class="string">'summary'</span>
+<span class="keyword">ORDER BY</span> created_at <span class="keyword">DESC</span>
+<span class="keyword">LIMIT</span> 10;
+
+<span class="comment">-- LLM 分析后生成"患者健康趋势报告"</span>
+<span class="comment">-- 写回 session_data (event_type = 'trend_report')</span>
+  </div>
+
+  <h3>构想四：冷热数据分层</h3>
+  <table class="storage-table">
+    <thead>
+      <tr><th>层级</th><th>数据</th><th>存储</th><th>访问频率</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag tag-red">热数据</span></td>
+        <td>当前会话的对话 + 状态</td>
+        <td>Redis (STM)</td>
+        <td>每轮对话读写</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-orange">温数据</span></td>
+        <td>近 90 天对话 + 近期事件 + 画像</td>
+        <td>PostgreSQL 主表</td>
+        <td>每次会话查询</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-blue">冷数据</span></td>
+        <td>超 90 天对话原文 + 衰减事件</td>
+        <td>PostgreSQL 归档表 / 压缩存储</td>
+        <td>审计时偶尔查询</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer">
+  MedLabAgent 记忆层架构分析 · 基于项目源码深度解读 · 2026
+</div>
+
+<!-- ==================== JS ==================== -->
+<script>
+// === Flow Diagram ===
+const flowSteps = [
+  { color: 'var(--accent-orange)', title: '① 用户发送消息', desc: '患者："我最近肌酐偏高，怎么回事？"', tag: 'STM 写入' },
+  { color: 'var(--accent-pink)', title: '② 加载 LTM 画像 (P1)', desc: '从 patient_profile 加载患者信息 → 注入系统提示词\n"用户ID: u001 | 姓名: 张三 | 年龄: 45岁 | 既往病史: 高血压"', tag: 'LTM P1 → STM' },
+  { color: 'var(--accent-blue)', title: '③ RAG 语义检索', desc: 'Query Rewriter: "肌酐" → "血肌酐, 肾功能, Cr"\nHybridRetriever: 关键词匹配 reference_ranges + FAISS 语义搜索\n召回 3 条相关医学知识', tag: 'LTM P2 → STM' },
+  { color: 'var(--accent-purple)', title: '④ Token 预算分配', desc: 'P1 系统指令(~2000) + P2 用户输入(~200) + P3 RAG(~1500) + P4 STM历史(~3000) + P5 状态(~300)\n总计 ~7000 / 19,660 tokens', tag: 'Budget' },
+  { color: 'var(--accent-cyan)', title: '⑤ LLM 推理生成', desc: '四层 Prompt 组装 → Qwen2.5-7B-Instruct → 生成回答\n安全检查 → 注入免责声明', tag: 'LLM' },
+  { color: 'var(--accent-green)', title: '⑥ 回答写入 STM', desc: '助手回答保存到 Redis stm:{session_id}:messages\n同时更新 dict L1 缓存\nToken 计数更新，检查是否触发压缩', tag: 'STM 写入' },
+  { color: 'var(--accent-orange)', title: '⑦ 压缩检查', desc: '如果 token > 10K：\n  → 取出最早的消息\n  → 归档到 PostgreSQL session_data (P3 对话原文)\n  → LLM 生成 200-300 字摘要\n  → 摘要替换原消息', tag: 'STM → LTM P3' },
+  { color: 'var(--accent-purple)', title: '⑧ 会话结束', desc: '① LLM 生成会话总结 → session_data P4 (event_type=summary)\n② 提取医疗事件 → session_data P2 (event_type=symptom/lab_result)\n③ 更新患者画像 → patient_profile P1\n④ 保存对话原文 → session_data P3 (event_type=message)\n⑤ 清空 Redis STM', tag: 'STM → LTM 全部' },
+];
+
+function renderFlow() {
+  const container = document.getElementById('flow-diagram');
+  const tagColors = {
+    'STM 写入': 'orange', 'LTM P1 → STM': 'pink', 'LTM P2 → STM': 'blue',
+    'Budget': 'purple', 'LLM': 'cyan', 'STM → LTM P3': 'orange', 'STM → LTM 全部': 'purple'
+  };
+  container.innerHTML = flowSteps.map((step, i) => `
+    <div class="flow-step">
+      <div class="flow-dot-col">
+        <div class="flow-dot" style="border-color:${step.color}"></div>
+        ${i < flowSteps.length - 1 ? '<div class="flow-line"></div>' : ''}
+      </div>
+      <div class="flow-content">
+        <div class="step-title" style="color:${step.color}">${step.title} <span class="tag tag-${tagColors[step.tag] || 'green'}">${step.tag}</span></div>
+        <div class="step-desc">${step.desc.replace(/\n/g, '<br>')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// === Interactive Demo ===
+const demoMessages = [
+  { role: 'user', content: '我最近体检发现肌酐偏高，108 μmol/L，这严重吗？', tokens: 180 },
+  { role: 'assistant', content: '您的肌酐值 108 μmol/L 略高于正常范围上限（男性 44-133 μmol/L）。单次轻度升高不一定代表肾功能受损，可能与近期高蛋白饮食、剧烈运动或脱水有关。建议：1）复查肾功能（含 BUN、eGFR）；2）注意多饮水；3）避免剧烈运动后检测。', tokens: 420 },
+  { role: 'user', content: '我还有尿酸也高，520 μmol/L，和肌酐有关系吗？', tokens: 150 },
+  { role: 'assistant', content: '尿酸 520 μmol/L 明显偏高（正常上限 420 μmol/L）。高尿酸和肌酐升高都可能反映肾脏排泄功能下降，两者有一定关联。但也可能是独立问题：高尿酸常见于高嘌呤饮食、代谢综合征。建议同时检查尿常规、肾脏B超，排除痛风性肾病。', tokens: 380 },
+  { role: 'user', content: '我有高血压5年了，吃氨氯地平，这会影响肾功能吗？', tokens: 160 },
+  { role: 'assistant', content: '氨氯地平是钙通道阻滞剂，对肾功能的影响较小，属于肾功能不全时相对安全的降压药。但高血压本身就是慢性肾病的重要危险因素，长期控制不佳会导致肾小球硬化。建议：1）严格控制血压<130/80mmHg；2）定期监测肾功能（每3个月）；3）考虑加用ACEI/ARB类药物（有肾脏保护作用）。', tokens: 400 },
+];
+
+let demoStep = 0;
+let stmMessages = [];
+let stmTokens = 0;
+let archivedCount = 0;
+let compressed = false;
+
+function sendDemoMessage() {
+  if (demoStep >= demoMessages.length) {
+    addChatMsg('system', '所有演示消息已发送完毕。请点击"触发压缩"或"结束会话"继续观察。');
+    return;
+  }
+  const msg = demoMessages[demoStep];
+  addChatMsg(msg.role, msg.content);
+  stmMessages.push(msg);
+  stmTokens += msg.tokens;
+  demoStep++;
+  updateSTMState();
+  updateBudgetState();
+  if (msg.role === 'user') {
+    document.getElementById('ltm-rag').textContent = '已检索 3 条';
+    setTimeout(() => { document.getElementById('ltm-rag').textContent = '待命中'; }, 2000);
+  }
+  const phases = ['greeting', 'history_taking', 'symptom_inquiry', 'symptom_inquiry', 'examination_suggestion'];
+  document.getElementById('stm-phase').textContent = phases[Math.min(demoStep, phases.length - 1)] || 'conclusion';
+}
+
+function triggerCompress() {
+  if (compressed) { addChatMsg('system', '已经压缩过了，无需再次压缩。'); return; }
+  if (stmMessages.length < 4) { addChatMsg('system', '消息太少，无需压缩。请先发送更多消息。'); return; }
+  const toArchive = stmMessages.splice(0, 2);
+  archivedCount += toArchive.length;
+  const summaryText = '【摘要】患者主诉肌酐偏高(108μmol/L)伴尿酸升高(520μmol/L)，有5年高血压病史，服用氨氯地平。';
+  stmMessages.unshift({ role: 'system', content: summaryText, tokens: 120 });
+  compressed = true;
+  stmTokens = stmMessages.reduce((s, m) => s + (m.tokens || 120), 0);
+  addChatMsg('system', `🗜️ 压缩触发！\n• ${toArchive.length} 条消息已归档到 PostgreSQL (session_data P3)\n• LLM 生成 200 字医学摘要\n• STM token 降至 ${stmTokens}`);
+  updateSTMState();
+  updateMTMState();
+  updateBudgetState();
+}
+
+function endSession() {
+  addChatMsg('system', '🏁 会话结束，执行收尾流程：\n① LLM 生成会话总结 → session_data P4 (event_type=summary)\n② 提取医疗事件：肌酐偏高、尿酸偏高、高血压病史 → session_data P2\n③ 更新患者画像：新增"高血压5年" → patient_profile P1\n④ 保存对话原文 → session_data P3\n⑤ 清空 Redis STM');
+  document.getElementById('mtm-summary').textContent = '已生成 (200字)';
+  document.getElementById('mtm-events').textContent = `${archivedCount + 3} 条`;
+  document.getElementById('ltm-events').textContent = `${3 + 3} 条`;
+  document.getElementById('ltm-archives').textContent = '3 个会话';
+  document.getElementById('ltm-summaries').textContent = '3 条';
+  document.getElementById('ltm-profile').textContent = '张三, 45岁, 男, 高血压5年';
+  document.getElementById('mtm-profile-update').textContent = '新增高血压病史';
+}
+
+function resetDemo() {
+  demoStep = 0; stmMessages = []; stmTokens = 0; archivedCount = 0; compressed = false;
+  document.getElementById('chat-window').innerHTML = '<div class="chat-msg system"><div class="role-label">SYSTEM</div>会话已重置。STM 已清空，LTM 画像保持不变。</div>';
+  document.getElementById('stm-msg-count').textContent = '0';
+  document.getElementById('stm-tokens').textContent = '0 / 10,000';
+  document.getElementById('stm-summary').textContent = '无';
+  document.getElementById('stm-phase').textContent = 'greeting';
+  document.getElementById('stm-progress').style.width = '0%';
+  document.getElementById('ltm-rag').textContent = '待命中';
+  document.getElementById('ltm-events').textContent = '3 条';
+  document.getElementById('ltm-archives').textContent = '2 个会话';
+  document.getElementById('ltm-summaries').textContent = '2 条';
+  document.getElementById('ltm-profile').textContent = '张三, 45岁, 男';
+  document.getElementById('mtm-archived').textContent = '0 条';
+  document.getElementById('mtm-summary').textContent = '未生成';
+  document.getElementById('mtm-events').textContent = '0 条';
+  document.getElementById('mtm-profile-update').textContent = '无变更';
+  document.getElementById('budget-input').textContent = '0';
+  document.getElementById('budget-rag').textContent = '0';
+  document.getElementById('budget-stm').textContent = '0';
+  document.getElementById('budget-total').textContent = '0 / 19,660';
+}
+
+function addChatMsg(role, content) {
+  const w = document.getElementById('chat-window');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  const labels = { user: '👤 患者', assistant: '🤖 助手', system: '⚙️ 系统' };
+  div.innerHTML = `<div class="role-label">${labels[role] || role}</div>${content.replace(/\n/g, '<br>')}`;
+  w.appendChild(div);
+  w.scrollTop = w.scrollHeight;
+}
+
+function updateSTMState() {
+  const count = stmMessages.filter(m => m.role !== 'system').length;
+  document.getElementById('stm-msg-count').textContent = count;
+  document.getElementById('stm-tokens').textContent = `${stmTokens.toLocaleString()} / 10,000`;
+  document.getElementById('stm-summary').textContent = compressed ? '已压缩' : '无';
+  document.getElementById('stm-progress').style.width = `${Math.min(100, stmTokens / 100)}%`;
+}
+
+function updateMTMState() {
+  document.getElementById('mtm-archived').textContent = `${archivedCount} 条`;
+}
+
+function updateBudgetState() {
+  const lastUser = stmMessages.filter(m => m.role === 'user').pop();
+  const inputTokens = lastUser ? lastUser.tokens : 0;
+  const ragTokens = stmMessages.some(m => m.role === 'user') ? 1500 : 0;
+  const stmT = stmMessages.reduce((s, m) => s + (m.tokens || 120), 0);
+  document.getElementById('budget-input').textContent = inputTokens.toLocaleString();
+  document.getElementById('budget-rag').textContent = ragTokens.toLocaleString();
+  document.getElementById('budget-stm').textContent = stmT.toLocaleString();
+  const total = 2000 + inputTokens + ragTokens + stmT + 300;
+  document.getElementById('budget-total').textContent = `${total.toLocaleString()} / 19,660`;
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+renderFlow();
+</script>
+
+</body>
+</html>

@@ -4,15 +4,9 @@ import axios from "axios";
 // 但当前端被一个不带代理的静态 node 服务器（例如 localhost:8890）托管时，
 // 直接指向后端 Spring Boot 服务，避免请求落在前端进程导致 405。
 let computedBase = "/api";
+// Vite proxy 已将 /api → :8000, /v1 → :8000，直接用相对路径即可
 if (typeof window !== "undefined" && window.location) {
-  const host = window.location.hostname;
-  const port = window.location.port;
-  // 本地开发场景：当前端由静态服务器托管在 8890/8888 端口时，
-  // 强制将 API 指向后端 8080，避免请求落到静态服务器导致 405。
-  if (port === "8890" || port === "8888") {
-    const targetHost = host === "0.0.0.0" || host === "" ? "localhost" : host;
-    computedBase = `http://${targetHost}:8080/api`;
-  }
+  console.log("[ApiService] base:", computedBase, "location:", window.location.href);
 }
 
 const apiClient = axios.create({
@@ -244,6 +238,105 @@ export default {
       console.error("Extract keywords failed:", error);
       return { isMedical: false, diseases: "", drugAllergies: "" };
     }
+  },
+
+  // ================================================================
+  // Phase 1-5 新增 API (对接自研 Python FastAPI 后端 :8000)
+  // ================================================================
+
+  async uploadLabReport(file, userId = "default", reportDate = null, age = 0, gender = "") {
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("user_id", userId)
+      if (reportDate) formData.append("report_date", reportDate)
+      if (age) formData.append("age", String(age))
+      if (gender) formData.append("gender", gender)
+      const response = await apiClient.post("/report/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      return response.data
+    } catch (error) {
+      console.error("Upload lab report failed:", error)
+      throw error
+    }
+  },
+
+  async getReportDetail(reportId) {
+    const response = await apiClient.get(`/report/${reportId}`)
+    return response.data
+  },
+
+  async listUserReports(userId = "default") {
+    const response = await apiClient.get(`/report/user/${userId}/list`)
+    return response.data
+  },
+
+  async chatSync(userId, message, reportId = null, useAgentLoop = false) {
+    const response = await apiClient.post("/chat", {
+      user_id: userId || "default", message, report_id: reportId, use_agent_loop: useAgentLoop,
+    })
+    return response.data
+  },
+
+  async streamChatV2(userId, message, reportId, onChunk, onError, onDone) {
+    const params = new URLSearchParams()
+    params.set("user_id", userId || "default")
+    params.set("message", message)
+    if (reportId) params.set("report_id", reportId)
+    const prefix = ((apiClient.defaults && apiClient.defaults.baseURL) || "").replace(/\/$/, "")
+    const url = `${prefix}/chat/stream?${params.toString()}`
+    try {
+      const token = localStorage.getItem("token")
+      const headers = { Accept: "text/event-stream" }
+      if (token) headers.Authorization = `Bearer ${token}`
+      const response = await fetch(url, { method: "GET", headers })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder("utf-8")
+      let buffer = ""
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() || ""
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const payload = line.slice(6)
+            if (payload.startsWith("{")) {
+              try {
+                const data = JSON.parse(payload)
+                if (data.done) { if (onDone) onDone(data); return }
+                else if (data.error) { if (onError) onError(data.error); return }
+                else if (data.content !== undefined) onChunk(data.content)
+              } catch (e) { onChunk(payload) }
+            } else { onChunk(payload) }
+          }
+        }
+      }
+      if (onDone) onDone({})
+    } catch (err) { if (onError) onError(err.message) }
+  },
+
+  async getChatSources(userId = "default") {
+    const response = await apiClient.get(`/chat/sources?user_id=${userId}`)
+    return response.data
+  },
+
+  async getUserProfile(userId = "default") {
+    const response = await apiClient.get(`/user/profile?user_id=${userId}`)
+    return response.data
+  },
+
+  async updateUserProfileV2(profile) {
+    const response = await apiClient.put("/user/profile", profile)
+    return response.data
+  },
+
+  async resetSession(userId = "default") {
+    const response = await apiClient.post(`/user/reset?user_id=${userId}`)
+    return response.data
   },
 
   async analyzeVision(filePath, model = null) {

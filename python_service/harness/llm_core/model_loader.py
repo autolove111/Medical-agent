@@ -35,6 +35,10 @@ class ModelConfig:
     use_double_quant: bool = True         # 二次量化，进一步压缩显存占用
     temperature: float = 0.7              # 生成温度，越高越随机
     max_new_tokens: int = 2000            # 单次最大生成 token 数
+    context_window: int = 32768           # 模型上下文窗口大小（tokens）
+    prompt_ratio: float = 0.6             # 提示词占比（60%）
+    output_ratio: float = 0.3             # 模型输出占比（30%）
+    buffer_ratio: float = 0.1             # 缓冲占比（10%）
 
 
 class ModelLoader:
@@ -181,3 +185,25 @@ class ModelLoader:
         """model 属性访问，首次访问时自动触发 load()"""
         self.load()
         return self._model
+
+    def get_token_budgets(self) -> dict:
+        """
+        根据上下文窗口和比例计算各部分的 token 预算
+
+        返回：
+            dict: 包含 prompt_max_tokens, output_max_tokens, buffer_tokens
+        """
+        context_window = self.config.context_window
+        prompt_max = int(context_window * self.config.prompt_ratio)
+        output_max = int(context_window * self.config.output_ratio)
+        buffer = int(context_window * self.config.buffer_ratio)
+
+        # 确保 output_max 至少为配置的 max_new_tokens
+        output_max = max(output_max, self.config.max_new_tokens)
+
+        return {
+            "context_window": context_window,
+            "prompt_max_tokens": prompt_max,
+            "output_max_tokens": output_max,
+            "buffer_tokens": buffer,
+        }

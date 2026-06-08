@@ -3,6 +3,7 @@
     <div class="header-bar">
       <div class="header-left">
         <h1>MedLabAgent</h1>
+        <span class="header-version">v0.2</span>
       </div>
       <div class="header-right">
         <div v-if="currentUser" class="user-info">
@@ -14,76 +15,86 @@
       </div>
     </div>
 
-    <div class="chat-window">
-      <div class="messages-area">
-        <div v-if="messages.length === 0" class="empty-state">
-          <h2>欢迎使用 MedLabAgent</h2>
-          <p>医疗实验室AI智能体系统</p>
-          <p class="user-greeter">
-            {{ currentUser ? `Hi, ${currentUser.realName}!` : "" }}
-          </p>
-        </div>
-
-        <div v-for="msg in messages" :key="msg.id">
-          <ChatMessage :message="msg" />
-          <!-- 对话确认按钮：仅在医疗诊断回复完成后显示 -->
-          <div
-            v-if="
-              msg.role === 'assistant' &&
-              msg.content &&
-              !isLoading &&
-              msg.isMedical &&
-              !msg.confirmed &&
-              !msg.rejected
-            "
-            class="confirm-bar"
-          >
-            <span class="confirm-hint">是否将此次诊断记录到您的病历？</span>
-            <button @click="showSaveDialog(msg)" class="confirm-btn">
-              ✅ 记录到病历
-            </button>
-            <button @click="msg.rejected = true" class="reject-btn">
-              ❌ 不记录
-            </button>
-          </div>
-          <div v-if="msg.confirmed" class="confirm-bar confirmed">
-            <span>✅ 已记录到病历</span>
-          </div>
-        </div>
-
-        <div v-if="isLoading && !isStreaming" class="message assistant">
-          <div class="message-content">
-            <div class="spinner"></div>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="error" class="error-message">
-        {{ error }}
-      </div>
-
-      <div class="input-area">
-        <input
-          v-model="userInput"
-          type="text"
-          placeholder="输入您的问题或上传医疗报告..."
-          @keyup.enter="sendMessage"
-          :disabled="isLoading"
+    <div class="chat-body">
+      <!-- 左侧：指标面板（上传报告后显示） -->
+      <aside v-if="reportIndicators.length > 0" class="side-panel">
+        <IndicatorPanel
+          :indicators="reportIndicators"
+          :reportDate="reportDate"
         />
-        <button @click="sendMessage" :disabled="isLoading || !userInput">
-          {{ isLoading ? "发送中..." : "发送" }}
-        </button>
-        <button @click="uploadFile" :disabled="isLoading">📤 上传</button>
-      </div>
+        <button class="close-panel-btn" @click="reportIndicators = []">✕ 关闭</button>
+      </aside>
 
-      <input
-        ref="fileInput"
-        type="file"
-        style="display: none"
-        @change="handleFileUpload"
-        accept="image/*,.pdf"
-      />
+      <!-- 右侧：聊天窗口 -->
+      <div class="chat-window">
+        <div class="messages-area">
+          <div v-if="messages.length === 0" class="empty-state">
+            <h2>欢迎使用 MedLabAgent</h2>
+            <p>医疗检验报告智能解读助手</p>
+            <p class="user-greeter">
+              {{ currentUser ? `Hi, ${currentUser.realName}!` : "" }}
+            </p>
+            <p class="hint-text">上传化验单开始解读，或直接输入问题咨询</p>
+          </div>
+
+          <div v-for="msg in messages" :key="msg.id">
+            <ChatMessage :message="msg" />
+            <!-- Phase 7: 来源引用面板（模型回复后展示） -->
+            <div
+              v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && !isLoading"
+              class="sources-panel"
+            >
+              <div class="sources-header" @click="msg.showSources = !msg.showSources">
+                📚 参考来源 ({{ msg.sources.length }}) {{ msg.showSources ? '▲' : '▼' }}
+              </div>
+              <div v-if="msg.showSources" class="sources-list">
+                <div v-for="(s, i) in msg.sources" :key="i" class="source-item">
+                  <span class="source-name">{{ s.source || s }}</span>
+                  <span class="source-section" v-if="s.section">§ {{ s.section }}</span>
+                  <span class="source-category" v-if="s.category">{{ s.category }}</span>
+                </div>
+              </div>
+            </div>
+            <!-- 原有的对话确认按钮 -->
+            <div
+              v-if="msg.role === 'assistant' && msg.content && !isLoading && msg.isMedical && !msg.confirmed && !msg.rejected"
+              class="confirm-bar"
+            >
+              <span class="confirm-hint">是否将此次诊断记录到您的病历？</span>
+              <button @click="showSaveDialog(msg)" class="confirm-btn">✅ 记录到病历</button>
+              <button @click="msg.rejected = true" class="reject-btn">❌ 不记录</button>
+            </div>
+            <div v-if="msg.confirmed" class="confirm-bar confirmed">
+              <span>✅ 已记录到病历</span>
+            </div>
+          </div>
+
+          <div v-if="isLoading && !isStreaming" class="message assistant">
+            <div class="message-content"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <div v-if="error" class="error-message">{{ error }}</div>
+
+        <!-- Phase 7: 输入区集成 ReportUpload -->
+        <div class="input-area">
+          <ReportUpload @uploaded="onReportUploaded" />
+          <input
+            v-model="userInput"
+            type="text"
+            placeholder="输入您的问题..."
+            @keyup.enter="sendMessage"
+            :disabled="isLoading"
+          />
+          <button @click="sendMessage" :disabled="isLoading || !userInput">
+            {{ isLoading ? "..." : "发送" }}
+          </button>
+        </div>
+      </div>
     </div>
+
+    <!-- Phase 7: 全局免责声明 -->
+    <DisclaimerBar />
 
     <!-- 病历保存对话框 -->
     <div v-if="showMedicalDialog" class="dialog-overlay">
@@ -91,19 +102,11 @@
         <h3>📋 记录到病历</h3>
         <div class="dialog-field">
           <label>疾病/症状：</label>
-          <input
-            v-model="medicalForm.disease"
-            type="text"
-            placeholder="例如：急性扁桃体炎、高热"
-          />
+          <input v-model="medicalForm.disease" type="text" placeholder="例如：急性扁桃体炎、高热" />
         </div>
         <div class="dialog-field">
           <label>药物过敏：</label>
-          <input
-            v-model="medicalForm.drugAllergy"
-            type="text"
-            placeholder="例如：青霉素（无则留空）"
-          />
+          <input v-model="medicalForm.drugAllergy" type="text" placeholder="例如：青霉素（无则留空）" />
         </div>
         <div class="dialog-field">
           <label>当前状态：</label>
@@ -120,7 +123,7 @@
       </div>
     </div>
 
-    <!-- 用户信息弹窗（查看/编辑） -->
+    <!-- 用户信息弹窗 -->
     <div v-if="showProfileDialog" class="dialog-overlay">
       <div class="dialog-box">
         <h3>👤 个人信息</h3>
@@ -138,10 +141,7 @@
         </div>
         <div class="dialog-field">
           <label>病史：</label>
-          <textarea
-            v-model="profileForm.lifetimeMedicalHistory"
-            rows="4"
-          ></textarea>
+          <textarea v-model="profileForm.lifetimeMedicalHistory" rows="4"></textarea>
         </div>
         <div class="dialog-actions">
           <button @click="saveProfile" class="confirm-btn">保存</button>
@@ -153,8 +153,11 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount, computed, nextTick } from "vue";
+import { ref, onMounted, onBeforeUnmount, computed, nextTick, watch } from "vue";
 import ChatMessage from "./ChatMessage.vue";
+import IndicatorPanel from "./IndicatorPanel.vue";
+import ReportUpload from "./ReportUpload.vue";
+import DisclaimerBar from "./DisclaimerBar.vue";
 import { useChatStore } from "../stores/chatStore";
 import { useAuthStore } from "../stores/authStore";
 import ApiService from "../services/ApiService";
@@ -164,6 +167,9 @@ export default {
   name: "ChatWindow",
   components: {
     ChatMessage,
+    IndicatorPanel,
+    ReportUpload,
+    DisclaimerBar,
   },
   setup() {
     const chatStore = useChatStore();
@@ -172,8 +178,13 @@ export default {
     const userInput = ref("");
     const fileInput = ref(null);
     const isLoading = ref(false);
-    const isStreaming = ref(false); // 新增：标记是否正在接收流数据
+    const isStreaming = ref(false);
     const error = ref(null);
+
+    // Phase 7: 报告状态
+    const reportIndicators = ref([]);
+    const reportDate = ref("");
+    const currentReportId = ref(null);
     const showMedicalDialog = ref(false);
     const currentSaveMsg = ref(null);
     const medicalForm = ref({ disease: "", status: "未康复" });
@@ -260,35 +271,24 @@ export default {
       scrollToBottom();
 
       try {
-        // 3. 调用流式接口
-        await ApiService.streamChat(
-          userMessage,
+        await ApiService.streamChatV2(
+          "default", userMessage, currentReportId.value,
           (chunk) => {
-            isStreaming.value = true;
-            const lastIndex = chatStore.messages.length - 1;
-            const msg = chatStore.messages[lastIndex];
-            if (msg && msg.role === "assistant") {
-              msg.content += chunk;
-              scrollToBottom();
+            isStreaming.value = true
+            const last = chatStore.messages[chatStore.messages.length - 1]
+            if (last && last.role === "assistant") { last.content += chunk; scrollToBottom() }
+          },
+          (e) => {
+            console.error("Stream error:", e)
+            error.value = "服务响应异常: " + (e || "未知错误")
+          },
+          (meta) => {
+            const last = chatStore.messages[chatStore.messages.length - 1]
+            if (last && last.role === "assistant" && meta) {
+              if (meta.sources) { last.sources = meta.sources; last.showSources = false }
             }
-          },
-          (streamErr) => {
-            console.error("Stream error:", streamErr);
-          },
-          (metadata) => {
-            console.log("Stream done, metadata:", metadata);
-            const lastMsg = chatStore.messages[chatStore.messages.length - 1];
-            if (lastMsg && lastMsg.role === "assistant" && metadata) {
-              lastMsg.isMedical = metadata.isMedical || false;
-              lastMsg.extractedDiseases = metadata.diseases || "";
-              lastMsg.extractedDrugAllergy = metadata.drugAllergies || "";
-              // 从显示内容中去掉 [META|...] 标记
-              lastMsg.content = lastMsg.content
-                .replace(/\n?\[META\|[^\]]*\]/g, "")
-                .trimEnd();
-            }
-          },
-        );
+          }
+        )
       } catch (err) {
         error.value = "通信失败: " + err.message;
         const lastIndex = chatStore.messages.length - 1;
@@ -366,6 +366,18 @@ export default {
       } finally {
         isLoading.value = false;
         isStreaming.value = false;
+      }
+    }
+
+    // Phase 7: 报告上传完成回调
+    function onReportUploaded(result) {
+      if (result && result.indicators) {
+        reportIndicators.value = result.indicators
+        reportDate.value = result.report_date || new Date().toISOString().slice(0, 10)
+        currentReportId.value = result.report_id
+        // 自动触发解读
+        userInput.value = "请对这份化验报告进行详细解读"
+        nextTick().then(() => sendMessage())
       }
     }
 
@@ -554,45 +566,58 @@ export default {
     }
 
     return {
-      userInput,
-      fileInput,
-      isLoading,
-      isStreaming,
-      error,
-      messages,
-      currentUser,
-      showMedicalDialog,
-      medicalForm,
-      showProfileDialog,
-      profileForm,
-      sendMessage,
-      sendOcrMessage,
-      uploadFile,
-      handleFileUpload,
-      handleLogout,
-      openProfile,
-      closeProfile,
-      saveProfile,
-      showSaveDialog,
-      confirmSave,
-      cancelSave,
+      userInput, fileInput, isLoading, isStreaming, error, messages, currentUser,
+      showMedicalDialog, medicalForm, showProfileDialog, profileForm,
+      // Phase 7
+      reportIndicators, reportDate, currentReportId,
+      onReportUploaded,
+      // existing
+      sendMessage, sendOcrMessage, uploadFile, handleFileUpload,
+      handleLogout, openProfile, closeProfile, saveProfile,
+      showSaveDialog, confirmSave, cancelSave,
     };
   },
 };
 </script>
 
 <style scoped>
-/* 原有的样式完全保持不变 */
 .chat-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
+  display: flex; flex-direction: column; height: 100%; width: 100%;
   background: white;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
+
+/* Phase 7: 左右分栏布局 */
+.chat-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+.side-panel {
+  width: 340px; flex-shrink: 0; padding: 12px; border-right: 1px solid #eee;
+  overflow-y: auto; background: #fafafa; position: relative;
+}
+.close-panel-btn {
+  position: absolute; top: 8px; right: 8px; background: #eee; border: none;
+  padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+}
+
+/* Phase 7: 来源引用面板 */
+.sources-panel { margin: 4px 0 8px 40px; }
+.sources-header {
+  font-size: 13px; color: #667eea; cursor: pointer; padding: 4px 8px;
+  background: #f0f2ff; border-radius: 6px; display: inline-block;
+}
+.sources-list { margin-top: 6px; }
+.source-item {
+  display: flex; gap: 8px; align-items: center; padding: 4px 10px;
+  font-size: 12px; background: #fafafa; border-radius: 4px; margin-bottom: 3px;
+}
+.source-name { font-weight: 600; color: #333; }
+.source-section { color: #667eea; }
+.source-category {
+  margin-left: auto; font-size: 10px; padding: 1px 6px;
+  background: #eee; border-radius: 8px; color: #888;
+}
+
+.header-version { font-size: 12px; color: rgba(255,255,255,0.6); margin-left: 10px; }
+.hint-text { font-size: 14px; color: #bbb; margin-top: 8px; }
 
 .header-bar {
   display: flex;

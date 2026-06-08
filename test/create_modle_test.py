@@ -4,16 +4,16 @@
 逐级测试 harness 层各组件，确认本地模型能正常加载和推理。
 
 运行方式：
-    cd e:/xiangmu/dachuang/langchain_service
-    python -m test.create_modle_test
+    conda activate medagent
+    python -u test/create_modle_test.py
 """
 
 import sys
 import os
 import logging
 
-# 将 langchain_service 加入 Python 路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "langchain_service"))
+# 将 python_service 加入 Python 路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python_service"))
 
 # 配置日志，方便观察加载过程
 logging.basicConfig(
@@ -31,7 +31,7 @@ def test_model_loader():
 
     from harness.llm_core.model_loader import ModelLoader, ModelConfig
 
-    model_path = os.path.join(os.path.dirname(__file__), "..", "models", "Qwen2.5-7B-Instruct")
+    model_path = os.path.join(os.path.dirname(__file__), "..", "python_service", "models", "Qwen2.5-7B-Instruct")
     config = ModelConfig(
         model_path=model_path,
         use_4bit=True,
@@ -109,10 +109,8 @@ def test_create_agent():
 
     from harness.llm_adapter.create_agent import create_agent
 
-    model_path = os.path.join(os.path.dirname(__file__), "..", "models", "Qwen2.5-7B-Instruct")
-
-    print("创建 Agent...")
-    agent = create_agent(model_path=model_path, use_4bit=True, temperature=0.7)
+    print("创建 Agent（从 .env 读取模型路径）...")
+    agent = create_agent(user_id="test", user_name="测试", use_4bit=True, temperature=0.7)
     print("Agent 创建成功")
 
     # 测试多轮对话
@@ -126,8 +124,9 @@ def test_create_agent():
     reply2 = agent.chat("血红蛋白偏低怎么办？")
     print(f"Agent: {reply2}")
 
-    assert len(agent.history) == 5, f"对话历史应有 5 条（system+2轮），实际 {len(agent.history)}"
-    print(f"\n对话历史条数: {len(agent.history)}")
+    msg_count = len(agent.state.messages)
+    assert msg_count == 5, f"对话历史应有 5 条（system+2轮），实际 {msg_count}"
+    print(f"\n对话历史条数: {msg_count}")
     print("[PASS] Agent 多轮对话成功\n")
 
 

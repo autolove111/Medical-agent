@@ -31,11 +31,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ==================== 配置 ====================
-DASHSCOPE_API_KEY = "sk-"  # 从环境变量读取
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "sk-")
 DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 DASHSCOPE_MODEL = os.getenv("VISION_MODEL", "qwen3-vl-32b-thinking")
-REDIS_HOST = "redis"
-REDIS_PORT = 6379
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_TTL = 86400 * 7  # 7 天缓存
 
 # ==================== 医学指标映射 ====================
@@ -386,21 +386,24 @@ async def _call_dashscope_vision(image_base64: str) -> str:
 
 
 async def _download_image_as_base64(image_url: str) -> str:
-    """下载图片并转为 base64"""
-    async with httpx.AsyncClient(timeout=30, trust_env=False) as client:
-        response = await client.get(image_url)
-    response.raise_for_status()
-
-    content_type = response.headers.get("content-type", "")
-    content_len = len(response.content or b"")
-    logger.info("Downloaded image: url=%s content-type=%s size=%d", image_url, content_type, content_len)
-
-    # 基本校验：必须是图片且有足够字节数
-    if not content_type.lower().startswith("image/") or content_len < 1000:
-        raise ValueError(f"下载到的资源不是有效图片: content_type={content_type} size={content_len}")
-
+    """下载/读取图片并转为 base64（支持 URL 和本地路径）"""
     import base64
-    content_bytes = response.content
+
+    # 本地文件直接读取
+    if os.path.exists(image_url):
+        logger.info("Reading local file: %s", image_url)
+        with open(image_url, "rb") as f:
+            content_bytes = f.read()
+    else:
+        async with httpx.AsyncClient(timeout=30, trust_env=False) as client:
+            response = await client.get(image_url)
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "")
+        content_len = len(response.content or b"")
+        logger.info("Downloaded image: url=%s content-type=%s size=%d", image_url, content_type, content_len)
+        if not content_type.lower().startswith("image/") or content_len < 1000:
+            raise ValueError(f"下载到的资源不是有效图片: content_type={content_type} size={content_len}")
+        content_bytes = response.content
 
     # 尝试压缩/缩放图片以减少请求体大小，降低被远端断开连接的风险
     if Image is not None:
