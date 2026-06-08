@@ -13,7 +13,6 @@ create_agent
 """
 
 import os
-import sys
 import logging
 from dataclasses import dataclass
 from typing import List, Optional, Callable, Iterable
@@ -25,11 +24,11 @@ from harness.llm_adapter.chat_model import ChatModel, Chunk
 from harness.state.agent_state import (
     AgentState,
     UserProfile,
-    SystemMessage,
     HumanMessage,
     AssistantMessage,
 )
 from harness.prompt.prompt_context import build_system_prompt, assemble_final_prompt
+from harness.memory.stm import STMManager
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +46,8 @@ def _ensure_rag():
     if _rag_retrieve is not None:
         return _rag_retrieve
 
-    _long_memory = os.path.join(_ENV_DIR, "harness", "long_memory")
-    if _long_memory not in sys.path:
-        sys.path.insert(0, _long_memory)
-
     try:
-        from knowledge.rag import retrieve_medical_knowledge
+        from service.rag import retrieve_medical_knowledge
         _rag_retrieve = retrieve_medical_knowledge
         logger.info("RAG module loaded successfully")
     except Exception as e:
@@ -86,10 +81,10 @@ class LabAgent:
         for chunk in agent.chat_stream("继续解释"): ...
 
     状态管理：
-        agent.state              # AgentState 实例
-        agent.state.user         # 用户画像
-        agent.state.messages     # 有序对话历史
-        agent.state.turn_count   # 当前轮次
+        agent.state          # AgentState 实例
+        agent.state.user     # 用户画像
+        agent.state.stm      # 短期记忆（token 感知 + 自动压缩）
+        agent.state.turn_count  # 当前轮次
     """
 
     def __init__(
@@ -141,30 +136,50 @@ class LabAgent:
 
     def chat(self, user_input: str) -> str:
         """同步对话：发送用户输入，返回完整回复"""
+        # 保存用户输入到短期记忆（通过 add_message 统一入口）
         self.state.add_message(HumanMessage(content=user_input))
 
         # RAG 检索医学知识库
         self._do_rag(user_input)
 
-        # 从 state 组装四层 prompt，传给 ChatModel
-        prompt = assemble_final_prompt(self.state)
+        # 获取 token 预算
+        token_budgets = self.chat_model.loader.get_token_budgets()
+        prompt_max_tokens = token_budgets["prompt_max_tokens"]
+
+        # 从 state 组装四层 prompt，传给 ChatModel（带 token 限制）
+        prompt = assemble_final_prompt(self.state, prompt_max_tokens=prompt_max_tokens)
+
+        # 打印本轮prompt（用于调试）
+        logger.info("=" * 60)
+        logger.info("PROMPT (turn %d):", self.state.turn_count)
+        logger.info("=" * 60)
+        logger.info(prompt)
+        logger.info("=" * 60)
+
         reply = self.chat_model.invoke(prompt)
 
         # Phase 6: 安全红线 + 免责声明
         reply = self._safety_check(reply)
 
+        # 保存助手回复到短期记忆（通过 add_message 统一入口）
         self.state.add_message(AssistantMessage(content=reply))
+
         return reply
 
     def chat_stream(self, user_input: str) -> Iterable[Chunk]:
         """流式对话：逐 token 返回回复片段"""
+        # 保存用户输入到短期记忆（通过 add_message 统一入口）
         self.state.add_message(HumanMessage(content=user_input))
 
         # RAG 检索医学知识库
         self._do_rag(user_input)
 
-        # 从 state 组装四层 prompt，传给 ChatModel
-        prompt = assemble_final_prompt(self.state)
+        # 获取 token 预算
+        token_budgets = self.chat_model.loader.get_token_budgets()
+        prompt_max_tokens = token_budgets["prompt_max_tokens"]
+
+        # 从 state 组装四层 prompt，传给 ChatModel（带 token 限制）
+        prompt = assemble_final_prompt(self.state, prompt_max_tokens=prompt_max_tokens)
 
         full_reply = ""
         for chunk in self.chat_model.stream(prompt):
@@ -174,6 +189,7 @@ class LabAgent:
         # Phase 6: 安全红线 + 免责声明（对完整回复执行）
         full_reply = self._safety_check(full_reply)
 
+        # 保存助手回复到短期记忆（通过 add_message 统一入口）
         self.state.add_message(AssistantMessage(content=full_reply))
 
     def call_tool(self, tool_name: str, args: str) -> str:
@@ -221,6 +237,10 @@ def create_agent(
     user_name: str = "",
     user_age: int = 0,
     user_gender: str = "",
+    context_window: int = 32768,
+    prompt_ratio: float = 0.6,
+    output_ratio: float = 0.3,
+    buffer_ratio: float = 0.1,
 ) -> LabAgent:
     """
     Agent 工厂函数：一行代码创建完整的 LabAgent
@@ -228,6 +248,12 @@ def create_agent(
     使用示例：
         agent = create_agent(user_id="u001", user_name="张三", user_age=45)
         reply = agent.chat("血红蛋白偏低怎么办？")
+
+    参数：
+        context_window: 模型上下文窗口大小（tokens），默认 32768
+        prompt_ratio: 提示词占比，默认 0.6（60%）
+        output_ratio: 模型输出占比，默认 0.3（30%）
+        buffer_ratio: 缓冲占比，默认 0.1（10%）
     """
     # Step 1: 确定模型路径（相对路径基于 python_service 目录解析）
     if model_path is None:
@@ -260,16 +286,34 @@ def create_agent(
         use_4bit=use_4bit,
         temperature=temperature,
         max_new_tokens=max_new_tokens,
+        context_window=context_window,
+        prompt_ratio=prompt_ratio,
+        output_ratio=output_ratio,
+        buffer_ratio=buffer_ratio,
     )
     loader = ModelLoader.init(config)
     chat_model = ChatModel(loader)
 
-    # Step 5: 创建状态并写入 system prompt
+    # Step 5: 创建状态并设置 system prompt
     state = AgentState(user=user)
-    state.add_message(SystemMessage(content=full_system_prompt))
+    state.system_prompt = full_system_prompt
 
-    # Step 6: 组装 Agent
+    # Step 6: 初始化短期记忆（STMManager，token 感知 + 自动压缩）
+    stm = STMManager(session_id=user_id, user_id=user_id)
+    state.stm = stm
+
+    # Step 7: 组装 Agent
     agent = LabAgent(chat_model=chat_model, state=state, tools=tools)
 
-    logger.info("Agent created | user=%s model=%s", user_id, model_path)
+    # 计算并记录 token 预算
+    token_budgets = loader.get_token_budgets()
+    logger.info(
+        "Agent created | user=%s model=%s stm=enabled | "
+        "Token budget: prompt=%d, output=%d, buffer=%d (total=%d)",
+        user_id, model_path,
+        token_budgets["prompt_max_tokens"],
+        token_budgets["output_max_tokens"],
+        token_budgets["buffer_tokens"],
+        token_budgets["context_window"]
+    )
     return agent

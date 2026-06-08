@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     VECTOR_DB_TYPE: str = "faiss"
     VECTOR_DB_PATH: str = str(
-        (BASE_DIR / os.getenv("VECTOR_DB_PATH", "knowledge/vector_db")).resolve()
+        (BASE_DIR / os.getenv("VECTOR_DB_PATH", "harness/memory/knowledge/data/vector_db")).resolve()
     )
 
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
@@ -49,6 +49,16 @@ class Settings(BaseSettings):
 
     TEMPERATURE: float = 0.7
     MAX_TOKENS: int = 2000
+
+    # 上下文窗口分配配置
+    # 模型上下文窗口大小（tokens），当前模型 Qwen2.5-7B-Instruct 支持 32768
+    CONTEXT_WINDOW: int = int(os.getenv("CONTEXT_WINDOW", "32768"))
+    # 提示词占比（60%），用于系统提示、任务指令、历史对话等
+    PROMPT_RATIO: float = float(os.getenv("PROMPT_RATIO", "0.6"))
+    # 模型输出占比（30%），用于模型生成回复
+    OUTPUT_RATIO: float = float(os.getenv("OUTPUT_RATIO", "0.3"))
+    # 缓冲区占比（10%），用于防止 token 溢出和特殊标记
+    BUFFER_RATIO: float = float(os.getenv("BUFFER_RATIO", "0.1"))
 
     SERVICE_HOST: str = "0.0.0.0"
     SERVICE_PORT: int = 8000

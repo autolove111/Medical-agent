@@ -11,17 +11,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python_service
 
 # 强制重载
 for m in list(sys.modules):
-    if any(p in m for p in ("harness", "knowledge", "core")):
+    if any(p in m for p in ("harness", "service", "core")):
         del sys.modules[m]
-
-_lm = os.path.join(os.path.dirname(__file__), "..", "python_service", "harness", "long_memory")
-if _lm not in sys.path:
-    sys.path.insert(0, _lm)
 
 
 def test_query_rewrite():
     """验证 1：查询改写"""
-    from knowledge.query_rewriter import rewrite_query, extract_keywords, _extract_indicators
+    from service.rag.query_rewriter import rewrite_query, extract_keywords, _extract_indicators
 
     print("=" * 60)
     print("  验证1：查询改写")
@@ -49,8 +45,8 @@ def test_query_rewrite():
 
 def test_reference_match():
     """验证 2：reference_ranges 关键词匹配"""
-    from knowledge.hybrid_retriever import _match_reference_ranges
-    from knowledge.query_rewriter import extract_keywords
+    from service.rag.hybrid_retriever import _match_reference_ranges
+    from service.rag.query_rewriter import extract_keywords
 
     print("=" * 60)
     print("  验证2：关键词匹配（reference_ranges）")
@@ -78,8 +74,8 @@ def test_reference_match():
 
 def test_hybrid_search():
     """验证 3：混合检索 vs 纯语义检索"""
-    from knowledge.rag import get_rag_system
-    from knowledge.hybrid_retriever import HybridRetriever
+    from service.rag.rag import get_rag_system
+    from service.rag.hybrid_retriever import HybridRetriever
 
     print("=" * 60)
     print("  验证3：混合检索（关键词 + 语义 + 重排序）")
@@ -99,7 +95,7 @@ def test_hybrid_search():
     print(f"  查询: {query}")
 
     # 纯语义检索
-    from knowledge.rag_formatter import format_documents_as_answer
+    from service.rag.rag_formatter import format_documents_as_answer
     faiss_docs = list(faiss_retriever.invoke(query))
     print(f"  纯语义检索: {len(faiss_docs)} 篇")
     for d in faiss_docs:

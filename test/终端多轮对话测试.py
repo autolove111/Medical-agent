@@ -10,6 +10,14 @@
 
 import sys
 import os
+import logging
+
+# 配置日志，显示 INFO 级别
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python_service"))
 
@@ -35,7 +43,19 @@ def main():
         if not user_input:
             continue
         if user_input.lower() == "quit":
-            print("再见！")
+            # 退出时显示短期记忆状态
+            if agent.state.stm:
+                print("\n" + "=" * 50)
+                print("  短期记忆状态 (STM)")
+                print("=" * 50)
+                all_msgs = agent.state.stm.get_all_messages()
+                print(f"消息条目数: {len(all_msgs)}")
+                recent = agent.state.stm.get_recent_messages(n=5)
+                for msg in recent:
+                    role = msg.get("role", "?")
+                    content = msg.get("content", "")[:50]
+                    print(f"  [{role}] {content}...")
+            print("\n再见！")
             break
 
         reply = agent.chat(user_input)

@@ -143,13 +143,21 @@ Medical-agent/
 │   │   │   └── agent_state.py            # Agent 状态管理 (消息/快照/回滚)
 │   │   ├── prompt/
 │   │   │   └── prompt_context.py         # 四层提示词组装引擎
-│   │   └── long_memory/knowledge/        # RAG 长期记忆系统
+│   │   └── memory/                       # 统一记忆系统
+│   │       ├── knowledge/                # 医学知识数据层
+│   │       │   ├── reference_ranges.py   # 40+ 种检验指标参考范围
+│   │       │   └── data/                 # 知识文档 + FAISS 向量库
+│   │       ├── ltm/                      # 长期记忆（用户画像/时间轴/对话/总结）
+│   │       ├── stm/                      # 短期记忆（对话缓冲/状态跟踪/压缩）
+│   │       ├── budget/                   # Token 预算分配器
+│   │       └── lifecycle/                # 会话生命周期管理
+│   ├── service/                          # 业务服务层
+│   │   └── rag/                          # RAG 检索增强生成服务
 │   │       ├── rag.py                    # RAG 系统总入口（单例）
 │   │       ├── rag_formatter.py          # 检索结果格式化 + 来源元数据提取
 │   │       ├── hybrid_retriever.py       # 混合检索（关键词+语义+重排序）
 │   │       ├── query_rewriter.py         # 医学查询改写器 (60+ 缩写)
-│   │       ├── embedding_FAISS.py        # BCE 嵌入 + FAISS 向量库
-│   │       ├── reference_ranges.py       # 40+ 种检验指标参考范围
+│   │       ├── embedding.py              # BCE 嵌入 + FAISS 向量库
 │   │       └── ...                       # 分块策略/文档加载/文本清洗
 │   ├── models/                           # 本地模型权重（需自行下载）
 │   │   ├── Qwen2.5-7B-Instruct/
@@ -236,7 +244,7 @@ python -c "from huggingface_hub import snapshot_download; snapshot_download('mai
 RAG_USE_LOCAL_EMBEDDING=true
 LLM_MODEL_PATH=./models/Qwen2.5-7B-Instruct
 RAG_LOCAL_EMBEDDING_PATH=./models/bce-embedding-base_v1
-VECTOR_DB_PATH=./harness/long_memory/knowledge/vector_db
+VECTOR_DB_PATH=./harness/memory/knowledge/data/vector_db
 ```
 
 ### 4. 启动服务 (三终端)
@@ -345,7 +353,7 @@ Assistant:                      ← 生成触发标记
 |------|------|------|
 | `harness/llm_adapter/create_agent.py` | +`_safety_check()` + `agent_loop()` | 安全检测 + 多步推理 |
 | `harness/llm_adapter/chat_model.py` | +话题标签截断 + 流式停止检测 | 抑制小模型幻觉 |
-| `harness/long_memory/knowledge/rag_formatter.py` | +`extract_source_metadata()` | 结构化来源输出 |
+| `service/rag/rag_formatter.py` | +`extract_source_metadata()` | 结构化来源输出 |
 | `ai-services-python/ocr_service/main.py` | REDIS_HOST 支持环境变量 + 本地文件读取 | 本地开发兼容 |
 | `frontend-vue/vite.config.js` | 代理指向 :8000 + 新增 /v1 代理 | 对接新后端 |
 | `frontend-vue/src/App.vue` | 移除不存在的 intro.mp4 | 修复启动报错 |

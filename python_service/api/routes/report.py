@@ -1,7 +1,5 @@
 """
 报告路由：上传化验单 → OCR 识别 → 结构化提取 → 指标分类 → 联动分析
-
-Phase 4：SQLite 持久化（DB + JSON 双写）
 """
 
 from __future__ import annotations
@@ -16,7 +14,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from api.models import ReportUploadResponse, IndicatorItem
 from app.business.report_pipeline import get_report_pipeline
 from app.business.lab_report import LabReport
-from app.persistence.repositories.report_repo import ReportRepo
+from app.persistence.repositories.session_data_repo import SessionDataRepo
 
 logger = logging.getLogger(__name__)
 
@@ -97,30 +95,35 @@ async def upload_report(
     # Step 3: 联动分析
     correlations = pipeline.analyze_correlations(report)
 
-    # Step 4: 持久化（JSON 文件 + SQLite 数据库双写）
+    # Step 4: 持久化（JSON 文件 + session_data 表）
     pipeline.save_report(report)
     set_report(report)
 
     try:
-        ReportRepo().save(
-            report_id=report.report_id,
-            user_id=report.user_id,
-            report_date=report.report_date,
-            file_path=report.file_path,
-            total_count=report.total_count,
-            abnormal_count=report.abnormal_count,
-            normal_count=report.normal_count,
-            has_critical=report.has_critical,
-            indicators=[ind.to_dict() for ind in report.indicators],
-            correlations=[
-                {"name": m.name, "severity": m.severity,
-                 "indicators": m.matched_indicators, "description": m.description,
-                 "suggestion": m.suggestion_hint}
-                for m in corr_matches
-            ],
-            raw_ocr_text=report.raw_ocr_text,
+        SessionDataRepo().add_event(
+            patient_id=report.user_id,
+            session_id=f"report_{report.report_id}",
+            event_type="lab_result",
+            content=f"化验报告 {report.report_date}: {report.total_count}项指标, {report.abnormal_count}项异常",
+            raw_data={
+                "report_id": report.report_id,
+                "report_date": report.report_date,
+                "file_path": report.file_path,
+                "total_count": report.total_count,
+                "abnormal_count": report.abnormal_count,
+                "normal_count": report.normal_count,
+                "has_critical": report.has_critical,
+                "indicators": [ind.to_dict() for ind in report.indicators],
+                "correlations": [
+                    {"name": m.name, "severity": m.severity,
+                     "indicators": m.matched_indicators, "description": m.description,
+                     "suggestion": m.suggestion_hint}
+                    for m in corr_matches
+                ],
+                "raw_ocr_text": report.raw_ocr_text,
+            },
         )
-        logger.info("Report %s persisted to SQLite", report.report_id)
+        logger.info("Report %s persisted to session_data", report.report_id)
     except Exception as e:
         logger.warning("Failed to persist report to DB: %s", e)
 
@@ -158,32 +161,21 @@ async def upload_report(
 
 @router.get("/{report_id}")
 async def get_report_detail(report_id: str):
-    """获取已处理报告的完整详情（DB 优先，回退 JSON 文件）"""
-    repo = ReportRepo()
-    db_report = repo.get_full(report_id)
+    """获取已处理报告的完整详情"""
+    # 先从 session_data 表查
+    repo = SessionDataRepo()
+    events = repo.get_events(patient_id="", event_type="lab_result", limit=100)
+    db_report = None
+    for ev in events:
+        rd = ev.get("raw_data", {})
+        if rd.get("report_id") == report_id:
+            db_report = rd
+            break
 
     if db_report is not None:
-        # 从 DB 获取
-        report = get_report(report_id)  # 尝试获取内存中的联动分析
-        if report is None:
-            report = get_report_pipeline().load_report(report_id)
-
-        correlations_data = db_report.get("correlations", [])
-        if report is not None:
-            correlations = get_report_pipeline().analyze_correlations(report)
-            corr_matches = correlations.get("matches", [])
-            if corr_matches:
-                correlations_data = [
-                    {"name": m.name, "severity": m.severity,
-                     "indicators": m.matched_indicators,
-                     "description": m.description,
-                     "suggestion": m.suggestion_hint}
-                    for m in corr_matches
-                ]
-
         return {
             "report": db_report,
-            "correlations": correlations_data,
+            "correlations": db_report.get("correlations", []),
             "correlation_context": "",
             "interpretation_prompt": "",
         }
@@ -215,12 +207,13 @@ async def get_report_detail(report_id: str):
 
 @router.get("/user/{user_id}/list")
 async def list_user_reports(user_id: str):
-    """列出用户的所有历史报告摘要（DB 优先）"""
-    repo = ReportRepo()
-    db_reports = repo.list_by_user(user_id)
+    """列出用户的所有历史报告摘要"""
+    repo = SessionDataRepo()
+    events = repo.get_events(patient_id=user_id, event_type="lab_result", limit=50)
 
-    if db_reports:
-        return {"user_id": user_id, "total": len(db_reports), "reports": db_reports, "source": "database"}
+    if events:
+        reports = [ev.get("raw_data", {}) for ev in events]
+        return {"user_id": user_id, "total": len(reports), "reports": reports, "source": "database"}
 
     # 回退 JSON 文件
     pipeline = get_report_pipeline()

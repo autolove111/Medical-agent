@@ -7,17 +7,22 @@ state.agent_state
 - 多态消息：SystemMessage / HumanMessage / AssistantMessage / ToolMessage
 - 用户画像：存储用户个人信息、病史、过敏史等，供模型参考
 - 统一状态：AgentState 聚合所有状态字段，支持快照与回滚
-- 有序历史：消息按时间顺序存放在一个列表中，保留完整对话流程
+- 短期记忆：通过 STMManager 统一管理对话历史，支持 token 感知和自动压缩
 
 与 ChatModel 的兼容性：
 - 所有消息类型都有 role 和 content 属性，可直接传给 ChatModel.invoke()
+- 对话历史通过 STMManager 管理，get_messages() 方法兼容旧接口
 """
 
 import copy
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
+
+# 避免循环导入
+if TYPE_CHECKING:
+    from harness.memory.stm.stm_manager import STMManager
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +114,7 @@ class AgentState:
 
     # ---- 核心状态 ----
     user: UserProfile                                       # 用户画像
-    messages: List[BaseMessage] = field(default_factory=list)  # 有序对话历史
+    system_prompt: str = ""                                 # 系统提示词（单独保存，不参与LRU淘汰）
 
     # ---- 推理与规划 ----
     reasoning_process: str = ""                             # 当前推理过程（模型思考链）
@@ -118,6 +123,7 @@ class AgentState:
     # ---- 记忆 ----
     memory_ref: Optional[str] = None                        # 长期记忆引用（后续对接记忆系统）
     rag_context: str = ""                                   # 当前轮 RAG 检索到的医学知识上下文
+    stm: Optional["STMManager"] = None                      # 短期记忆管理器（token 感知 + 自动压缩）
 
     # ---- 执行控制 ----
     is_finished: bool = False                               # 本轮任务是否结束
@@ -125,68 +131,120 @@ class AgentState:
     # ---- 快照（内部使用） ----
     _snapshots: List[dict] = field(default_factory=list, repr=False)
 
-    # ---- 消息操作 ----
+    # ---- 消息操作（通过 STMManager 管理） ----
 
     def add_message(self, message: BaseMessage):
-        """添加一条消息到历史末尾"""
-        self.messages.append(message)
-        logger.debug("Added %s message", message.role)
+        """添加一条消息到短期记忆"""
+        if not self.stm:
+            logger.warning("STMManager not initialized, message not saved")
+            return
+
+        if message.role == "system":
+            # SystemMessage 单独保存到 system_prompt 字段
+            self.system_prompt = message.content
+            return
+
+        self.stm.add_message(message.role, message.content)
+        logger.debug("Added %s message to STM (turn %d)", message.role, self.turn_count)
 
     def get_messages(self) -> List[BaseMessage]:
-        """获取完整消息列表（按时间顺序），可直接传给 ChatModel"""
-        return self.messages
+        """获取所有消息（从 STM 重建，用于兼容旧代码）"""
+        if not self.stm:
+            return []
+
+        all_msgs = self.stm.get_all_messages()
+        messages = []
+        for msg in all_msgs:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages.append(AssistantMessage(content=content))
+            elif role == "tool":
+                messages.append(ToolMessage(content=content))
+            # skip system/summary messages
+
+        return messages
 
     def get_last_assistant_message(self) -> Optional[AssistantMessage]:
         """获取最近一条助手回复"""
-        for msg in reversed(self.messages):
-            if isinstance(msg, AssistantMessage):
-                return msg
+        if not self.stm:
+            return None
+
+        recent = self.stm.get_recent_messages(n=5)
+        for msg in reversed(recent):
+            if msg.get("role") == "assistant":
+                return AssistantMessage(content=msg["content"])
         return None
 
     def get_last_human_message(self) -> Optional[HumanMessage]:
         """获取最近一条用户输入"""
-        for msg in reversed(self.messages):
-            if isinstance(msg, HumanMessage):
-                return msg
+        if not self.stm:
+            return None
+
+        recent = self.stm.get_recent_messages(n=5)
+        for msg in reversed(recent):
+            if msg.get("role") == "user":
+                return HumanMessage(content=msg["content"])
         return None
 
     # ---- 消息过滤 ----
 
     def filter_by_type(self, msg_type: type) -> List[BaseMessage]:
-        """按类型提取消息"""
-        return [m for m in self.messages if isinstance(m, msg_type)]
+        """按类型提取消息（兼容旧接口）"""
+        messages = self.get_messages()
+        return [m for m in messages if isinstance(m, msg_type)]
 
     @property
     def human_messages(self) -> List[HumanMessage]:
         """所有用户消息"""
-        return self.filter_by_type(HumanMessage)
+        if not self.stm:
+            return []
+
+        all_msgs = self.stm.get_all_messages()
+        return [HumanMessage(content=m["content"]) for m in all_msgs if m.get("role") == "user"]
 
     @property
     def assistant_messages(self) -> List[AssistantMessage]:
         """所有助手回复"""
-        return self.filter_by_type(AssistantMessage)
+        if not self.stm:
+            return []
+
+        all_msgs = self.stm.get_all_messages()
+        return [AssistantMessage(content=m["content"]) for m in all_msgs if m.get("role") == "assistant"]
 
     @property
     def tool_messages(self) -> List[ToolMessage]:
         """所有工具调用记录"""
-        return self.filter_by_type(ToolMessage)
+        if not self.stm:
+            return []
+
+        all_msgs = self.stm.get_all_messages()
+        return [ToolMessage(content=m["content"]) for m in all_msgs if m.get("role") == "tool"]
 
     @property
     def turn_count(self) -> int:
         """当前对话轮次（以用户消息计数）"""
-        return len(self.human_messages)
+        if not self.stm:
+            return 0
+
+        all_msgs = self.stm.get_all_messages()
+        return len([m for m in all_msgs if m.get("role") == "user"])
 
     # ---- 快照与回滚 ----
 
     def save_snapshot(self):
         """保存当前状态快照（深拷贝），用于后续回滚"""
         snapshot = {
-            "messages": copy.deepcopy(self.messages),
+            "system_prompt": self.system_prompt,
             "reasoning_process": self.reasoning_process,
             "task_queue": copy.deepcopy(self.task_queue),
             "memory_ref": self.memory_ref,
             "rag_context": self.rag_context,
             "is_finished": self.is_finished,
+            # 注意：stm 不做深拷贝，因为它是共享的管理器
+            # 如需回滚对话历史，应通过 stm 的 clear/re-add 机制
         }
         self._snapshots.append(snapshot)
         logger.debug("Snapshot saved (total: %d)", len(self._snapshots))
@@ -197,7 +255,7 @@ class AgentState:
             logger.warning("No snapshot to rollback to")
             return False
         snapshot = self._snapshots.pop()
-        self.messages = snapshot["messages"]
+        self.system_prompt = snapshot.get("system_prompt", "")
         self.reasoning_process = snapshot["reasoning_process"]
         self.task_queue = snapshot["task_queue"]
         self.memory_ref = snapshot["memory_ref"]
@@ -210,14 +268,14 @@ class AgentState:
 
     def reset(self):
         """重置状态（保留用户画像和系统提示词）"""
-        system_msgs = self.filter_by_type(SystemMessage)
-        self.messages = system_msgs
         self.reasoning_process = ""
         self.task_queue = []
         self.memory_ref = None
         self.is_finished = False
         self._snapshots = []
-        logger.info("State reset (kept %d system messages)", len(system_msgs))
+        # 注意：system_prompt 保留，stm 也保留
+        # 如需清空短期记忆，应显式调用 stm.clear()
+        logger.info("State reset (system_prompt preserved)")
 
     # ---- 序列化 ----
 
@@ -230,9 +288,11 @@ class AgentState:
                 "age": self.user.age,
                 "gender": self.user.gender,
             },
-            "message_count": len(self.messages),
             "turn_count": self.turn_count,
             "reasoning_process": self.reasoning_process,
             "task_queue": self.task_queue,
             "is_finished": self.is_finished,
+            "has_system_prompt": bool(self.system_prompt),
+            "has_stm": self.stm is not None,
+            "stm_messages": len(self.stm.get_all_messages()) if self.stm else 0,
         }

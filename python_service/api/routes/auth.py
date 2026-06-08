@@ -1,14 +1,10 @@
 """
 认证路由：兼容旧前端 /api/v1/auth/* 接口
-
-密码使用 SHA256 哈希持久化到 SQLite，服务重启不丢失。
-Token 为内存签名 token，服务重启后需重新登录（开发可接受）。
 """
 
 from __future__ import annotations
 import hashlib
 import hmac
-import json
 import logging
 import secrets
 import time
@@ -16,7 +12,7 @@ import time
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.persistence.repositories.user_repo import UserRepo
+from app.persistence.repositories.patient_profile_repo import PatientProfileRepo
 
 logger = logging.getLogger(__name__)
 
@@ -71,25 +67,24 @@ async def register(req: RegisterRequest):
     if req.password != req.confirmPassword:
         raise HTTPException(status_code=400, detail="两次密码不一致")
 
-    repo = UserRepo()
+    repo = PatientProfileRepo()
     if repo.exists(req.idNumber):
         raise HTTPException(status_code=400, detail="该身份证号已注册")
 
     repo.create_or_update(
-        user_id=req.idNumber,
+        patient_id=req.idNumber,
         name=req.realName,
         age=req.age,
-        gender="",
     )
 
     # 密码持久化到 DB
     from app.persistence.database import get_session
+    from app.persistence.models import PatientProfile
     db = get_session()
     try:
-        from app.persistence.models import UserModel
-        user = db.query(UserModel).filter(UserModel.id == req.idNumber).first()
-        if user:
-            user.password_hash = _hash_password(req.password)
+        profile = db.query(PatientProfile).filter(PatientProfile.patient_id == req.idNumber).first()
+        if profile:
+            profile.password_hash = _hash_password(req.password)
             db.commit()
     finally:
         db.close()
@@ -106,17 +101,16 @@ async def register(req: RegisterRequest):
 
 @router.post("/login")
 async def login(req: LoginRequest):
-    repo = UserRepo()
+    repo = PatientProfileRepo()
     if not repo.exists(req.idNumber):
         raise HTTPException(status_code=401, detail="身份证号或密码错误")
 
-    # 从 DB 获取密码哈希
     from app.persistence.database import get_session
-    from app.persistence.models import UserModel
+    from app.persistence.models import PatientProfile
     db = get_session()
     try:
-        user = db.query(UserModel).filter(UserModel.id == req.idNumber).first()
-        stored_hash = user.password_hash if user else ""
+        profile = db.query(PatientProfile).filter(PatientProfile.patient_id == req.idNumber).first()
+        stored_hash = profile.password_hash if profile else ""
     finally:
         db.close()
 
@@ -130,8 +124,8 @@ async def login(req: LoginRequest):
             "token": token,
             "user": {
                 "idNumber": req.idNumber,
-                "realName": user.name if user else req.idNumber,
-                "age": user.age if user else 0,
+                "realName": profile.name if profile else req.idNumber,
+                "age": profile.age if profile else 0,
             },
         },
     }
@@ -143,17 +137,12 @@ async def get_me(token: str = ""):
     if user_id is None:
         raise HTTPException(status_code=401, detail="token 无效或已过期")
 
-    repo = UserRepo()
-    db_user = repo.get(user_id)
-    if db_user is None:
+    repo = PatientProfileRepo()
+    db_profile = repo.get(user_id)
+    if db_profile is None:
         raise HTTPException(status_code=404, detail="用户不存在")
 
     return {
         "code": 200, "message": "success",
-        "data": {"user": {"idNumber": db_user.id, "realName": db_user.name, "age": db_user.age}},
+        "data": {"user": {"idNumber": db_profile.patient_id, "realName": db_profile.name, "age": db_profile.age}},
     }
-
-
-@router.post("/logout")
-async def logout(token: str = ""):
-    return {"code": 200, "message": "success"}
