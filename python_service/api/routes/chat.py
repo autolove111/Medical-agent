@@ -10,6 +10,7 @@ Phase 3 增强：接入 InterpretationEngine 输出结构化解读
 from __future__ import annotations
 import json
 import logging
+import re
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
@@ -24,6 +25,30 @@ from app.business.report_pipeline import get_report_pipeline
 from app.business.interpretation_engine import get_interpretation_engine
 
 logger = logging.getLogger(__name__)
+
+_META_PATTERN = re.compile(r"\[META\|([^\]]+)\]")
+
+
+def extract_metadata(text: str) -> tuple[str, dict]:
+    """从AI回复中提取[META|diseases:...|drugAllergies:...]结构化元数据。"""
+    metadata = {"isMedical": False, "diseases": "", "drugAllergies": ""}
+    match = _META_PATTERN.search(text)
+    if not match:
+        return text, metadata
+    parsed = {}
+    for field in match.group(1).split("|"):
+        if ":" not in field:
+            continue
+        k, v = field.split(":", 1)
+        parsed[k.strip()] = v.strip()
+    metadata["isMedical"] = parsed.get("isMedical", "").lower() in ("true", "yes", "1")
+    diseases = parsed.get("diseases", "")
+    metadata["diseases"] = "" if diseases in ("none", "", "-") else diseases
+    allergy = parsed.get("drugAllergies", "")
+    metadata["drugAllergies"] = "" if allergy in ("none", "", "-") else allergy
+    cleaned = _META_PATTERN.sub("", text).rstrip()
+    return cleaned, metadata
+
 
 router = APIRouter(prefix="/api", tags=["chat"])
 _executor = ThreadPoolExecutor(max_workers=4)
@@ -198,7 +223,8 @@ async def chat_stream(
 
             _latest_sources[user_id] = all_sources
 
-            yield f"data: {json.dumps({'done': True, 'sources': all_sources, 'turn_count': agent.state.turn_count}, ensure_ascii=False)}\n\n"
+            reply_meta = {}
+            yield f"data: {json.dumps({'done': True, 'sources': all_sources, 'turn_count': agent.state.turn_count, 'metadata': reply_meta}, ensure_ascii=False)}\n\n"
 
         except Exception as e:
             logger.exception("SSE stream error for user=%s", user_id)
