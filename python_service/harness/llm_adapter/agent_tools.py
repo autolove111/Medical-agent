@@ -11,6 +11,8 @@ Agent 医疗专用工具集
 from __future__ import annotations
 import json
 import logging
+import sys
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,11 @@ def tool_reference_lookup(args_json: str) -> str:
         gender = args.get("gender", "")
 
         # 导入参考范围
-        from harness.memory.knowledge.reference_ranges import REFERENCE_RANGES, format_reference_text
+        _harness = os.path.join(os.path.dirname(__file__), "..", "long_memory")
+        if _harness not in sys.path:
+            sys.path.insert(0, _harness)
+
+        from knowledge.reference_ranges import REFERENCE_RANGES, format_reference_text
 
         # 尝试解析 key
         from app.business.indicator_classifier import _resolve_key, classify_indicator
@@ -112,7 +118,11 @@ def tool_search_knowledge(args_json: str) -> str:
         if not query:
             return "错误：请提供检索关键词"
 
-        from service.rag import retrieve_medical_knowledge
+        _long_memory = os.path.join(os.path.dirname(__file__), "..", "long_memory")
+        if _long_memory not in sys.path:
+            sys.path.insert(0, _long_memory)
+
+        from knowledge.rag import retrieve_medical_knowledge
         answer, docs = retrieve_medical_knowledge(query)
 
         if answer:

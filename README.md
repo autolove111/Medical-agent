@@ -18,7 +18,7 @@ Medical-agent 是一个面向医疗检验场景的智能对话系统，能够解
 | API 服务 | FastAPI + Uvicorn + SSE 流式 |
 | 数据库 | SQLite + SQLAlchemy ORM |
 | 前端 | Vue 3 + Vite + Pinia + Axios |
-| 环境管理 | Conda (medagent, Python 3.11) |
+| 环境管理 | Conda (medlab-langchain + medlab-ocr, Python 3.11) |
 
 ## Demo 全流程架构
 
@@ -130,35 +130,13 @@ Medical-agent/
 │   │           ├── user_repo.py          # 用户 CRUD
 │   │           ├── report_repo.py        # 报告 CRUD
 │   │           └── chat_repo.py          # 对话记录 CRUD
-│   ├── harness/                          # 自研 Harness 框架层
-│   │   ├── llm_core/
-│   │   │   └── model_loader.py           # 模型加载器（单例 + 懒加载 + 4-bit）
-│   │   ├── llm_adapter/
-│   │   │   ├── chat_model.py             # 推理适配器 (invoke/stream + 截断)
-│   │   │   ├── create_agent.py           # Agent 工厂 + LabAgent
-│   │   │   ├── agent_loop.py             # AgentLoop 调度循环 (Phase 5)
-│   │   │   ├── tool_parser.py            # 工具调用解析 (XML+Action+JSON)
-│   │   │   └── agent_tools.py            # 4 个医疗专用工具
-│   │   ├── state/
-│   │   │   └── agent_state.py            # Agent 状态管理 (消息/快照/回滚)
-│   │   ├── prompt/
-│   │   │   └── prompt_context.py         # 四层提示词组装引擎
-│   │   └── memory/                       # 统一记忆系统
-│   │       ├── knowledge/                # 医学知识数据层
-│   │       │   ├── reference_ranges.py   # 40+ 种检验指标参考范围
-│   │       │   └── data/                 # 知识文档 + FAISS 向量库
-│   │       ├── ltm/                      # 长期记忆（用户画像/时间轴/对话/总结）
-│   │       ├── stm/                      # 短期记忆（对话缓冲/状态跟踪/压缩）
-│   │       ├── budget/                   # Token 预算分配器
-│   │       └── lifecycle/                # 会话生命周期管理
-│   ├── service/                          # 业务服务层
-│   │   └── rag/                          # RAG 检索增强生成服务
-│   │       ├── rag.py                    # RAG 系统总入口（单例）
-│   │       ├── rag_formatter.py          # 检索结果格式化 + 来源元数据提取
-│   │       ├── hybrid_retriever.py       # 混合检索（关键词+语义+重排序）
-│   │       ├── query_rewriter.py         # 医学查询改写器 (60+ 缩写)
-│   │       ├── embedding.py              # BCE 嵌入 + FAISS 向量库
-│   │       └── ...                       # 分块策略/文档加载/文本清洗
+  │   ├── harness/                          # 自研 Harness 框架层
+  │   │   ├── llm_core/model_loader.py
+  │   │   ├── llm_adapter/ (chat_model, create_agent, agent_loop, tool_parser, agent_tools)
+  │   │   ├── state/agent_state.py
+  │   │   ├── prompt/prompt_context.py
+  │   │   └── memory/                       # 统一记忆系统 (STM/LTM/Token预算/生命周期)
+  │   ├── service/rag/                      # RAG 检索增强生成 (已从 harness 迁移)
 │   ├── models/                           # 本地模型权重（需自行下载）
 │   │   ├── Qwen2.5-7B-Instruct/
 │   │   └── bce-embedding-base_v1/
@@ -206,25 +184,34 @@ Medical-agent/
 
 ### 1. 创建环境并安装依赖
 
+项目使用 conda environment.yml 管理依赖。**环境名可自定义**，不同开发者用不同名字不会冲突：
+
 ```powershell
-conda create -n medagent python=3.11 -y
-conda activate medagent
+# Python 后端环境
+cd Medical-agent/python_service
+conda env create -f environment.yml              # 默认名 medlab-langchain
+# 或用自定义名: conda env create -f environment.yml -n my-name
 
-# PyTorch (CUDA 12.4)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+# OCR 服务环境
+cd Medical-agent/ai-services-python/ocr_service
+conda env create -f environment.yml              # 默认名 medlab-ocr
+# 或用自定义名: conda env create -f environment.yml -n my-name-ocr
 
-# 核心依赖
-pip install transformers accelerate bitsandbytes sentencepiece
-pip install fastapi uvicorn pydantic pydantic-settings python-dotenv
-pip install sentence-transformers faiss-cpu
-pip install redis httpx requests tenacity tiktoken aiofiles sqlalchemy python-multipart
-
-# RAG 检索层
-pip install langchain-community langchain-core langchain-text-splitters
-
-# PaddleOCR 本地 OCR (Phase 7)
-pip install paddlepaddle==2.6.2 paddleocr==2.8.1
+# 前端依赖
+cd Medical-agent/frontend-vue
+npm install
 ```
+
+> 如果你的环境已存在，用 `conda env update -f environment.yml` 增量更新。
+>
+> 如果已有环境但想保留自定义名，只需补装 Phase 1-7 新增的包：
+> ```powershell
+> conda activate <你的环境名>
+> pip install sqlalchemy python-multipart langchain-community langchain-core langchain-text-splitters
+> 
+> conda activate <你的OCR环境名>
+> pip install paddlepaddle==2.6.2 paddleocr==2.8.1
+> ```
 
 ### 2. 下载模型权重
 
@@ -244,26 +231,26 @@ python -c "from huggingface_hub import snapshot_download; snapshot_download('mai
 RAG_USE_LOCAL_EMBEDDING=true
 LLM_MODEL_PATH=./models/Qwen2.5-7B-Instruct
 RAG_LOCAL_EMBEDDING_PATH=./models/bce-embedding-base_v1
-VECTOR_DB_PATH=./harness/memory/knowledge/data/vector_db
+VECTOR_DB_PATH=./harness/long_memory/knowledge/vector_db
 ```
 
-### 4. 启动服务 (三终端)
+### 4. 启动服务（三终端）
 
 ```powershell
 # 终端 1: Python 后端
-conda activate medagent
-cd Medical-agent/python_service
+conda activate <你的Python环境名>   # 默认 medlab-langchain
+cd python_service
 python server.py
 # → http://localhost:8000 (Swagger: /docs)
 
 # 终端 2: PaddleOCR 服务
-conda activate medagent
-cd Medical-agent/ai-services-python/ocr_service
+conda activate <你的OCR环境名>     # 默认 medlab-ocr
+cd ai-services-python/ocr_service
 python paddle_server.py
 # → http://localhost:8001 (首次启动自动下载 PP-OCRv4 模型 ~80MB)
 
 # 终端 3: 前端
-cd Medical-agent/frontend-vue
+cd frontend-vue
 npm install
 npm run dev
 # → http://localhost:8888
@@ -272,7 +259,7 @@ npm run dev
 ### 5. 验证
 
 ```powershell
-conda activate medagent
+conda activate medlab-langchain
 cd Medical-agent
 
 # 一键验证所有模块 (无需 GPU/模型)
@@ -353,7 +340,7 @@ Assistant:                      ← 生成触发标记
 |------|------|------|
 | `harness/llm_adapter/create_agent.py` | +`_safety_check()` + `agent_loop()` | 安全检测 + 多步推理 |
 | `harness/llm_adapter/chat_model.py` | +话题标签截断 + 流式停止检测 | 抑制小模型幻觉 |
-| `service/rag/rag_formatter.py` | +`extract_source_metadata()` | 结构化来源输出 |
+| `harness/long_memory/knowledge/rag_formatter.py` | +`extract_source_metadata()` | 结构化来源输出 |
 | `ai-services-python/ocr_service/main.py` | REDIS_HOST 支持环境变量 + 本地文件读取 | 本地开发兼容 |
 | `frontend-vue/vite.config.js` | 代理指向 :8000 + 新增 /v1 代理 | 对接新后端 |
 | `frontend-vue/src/App.vue` | 移除不存在的 intro.mp4 | 修复启动报错 |

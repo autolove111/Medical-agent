@@ -160,44 +160,6 @@ def _extract_numeric_value(text: str) -> Optional[float]:
     return None
 
 
-
-def _is_plausible_lab_value(indicator: str, value: float) -> bool:
-    """基础生理合理性校验，拦截明显OCR误识别值。"""
-    plausible_ranges = {
-        "hemoglobin": (40, 250), "wbc": (0.1, 100), "plt": (1, 1500),
-        "creatinine": (5, 2000), "bun": (0.5, 80), "total_bilirubin": (0, 500),
-        "direct_bilirubin": (0, 300), "glucose": (1, 50), "sodium": (100, 180),
-        "potassium": (1.5, 10), "calcium": (1, 5), "uric_acid": (50, 1200),
-        "alt": (1, 5000), "ast": (1, 5000), "alp": (5, 2000),
-        "total_protein": (30, 120), "albumin": (15, 70),
-    }
-    rr = plausible_ranges.get(indicator)
-    if not rr:
-        return True
-    low, high = rr
-    return low <= value <= high
-
-
-def _disambiguate_indicator_key(key: str, text: str, unit: str):
-    """对仍需按上下文细分的指标进行二次精确化。
-    处理 NRBC%/NRBC#, RDW-CV/RDW-SD, P-LCR, CBC分类计数(n/p)等。"""
-    compact = re.sub(r"[^A-Z0-9#%+-]", "", text.upper())
-    if key == "nrbc":
-        return "NRBC%" if "%" in compact else "NRBC#"
-    if key == "rdw":
-        if "CV" in compact:
-            return "RDW-CV"
-        if "SD" in compact:
-            return "RDW-SD"
-        return None
-    if "PLCR" in compact or "P-LCR" in compact:
-        return "P-LCR"
-    for token in ("NEUT", "BASO", "LY", "MO", "EO"):
-        if token in compact:
-            is_count = "#" in compact or "10^" in unit.upper() or "/L" in unit.upper()
-            return f"{token}-{'n' if is_count else 'p'}"
-    return None
-
 def _build_structured_payload(llm_analysis: str) -> Dict[str, Any]:
     """
     将原始 LLM 分析转换为结构化三层输出：
@@ -231,16 +193,9 @@ def _build_structured_payload(llm_analysis: str) -> Dict[str, Any]:
                 continue
 
             normalized_key = _normalize_indicator_key(key_part)
-            if normalized_key:
-                disambiguated = _disambiguate_indicator_key(normalized_key, key_part, value_part)
-                if disambiguated:
-                    normalized_key = disambiguated
 
             if normalized_key and numeric_value is not None:
-                if _is_plausible_lab_value(normalized_key, numeric_value):
-                    base_labs[normalized_key] = numeric_value
-                else:
-                    logger.warning("?????????OCR???: %s=%s", normalized_key, numeric_value)
+                base_labs[normalized_key] = numeric_value
                 full_extraction.append(f"{key_part}: {value_part}")
             else:
                 full_extraction.append(line)

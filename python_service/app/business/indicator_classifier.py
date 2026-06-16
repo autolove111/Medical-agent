@@ -10,9 +10,16 @@
 """
 
 from __future__ import annotations
+import sys
+import os
 from typing import Optional
 
-from harness.memory.knowledge.reference_ranges import REFERENCE_RANGES, get_reference_range
+# 确保能导入 harness/memory/knowledge 下的模块 (zly_3 已迁移路径)
+_HARNESS_ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "harness", "memory")
+if _HARNESS_ROOT not in sys.path:
+    sys.path.insert(0, _HARNESS_ROOT)
+
+from knowledge.reference_ranges import REFERENCE_RANGES, get_reference_range
 
 # ---- OCR key → 参考范围 key 别名映射 ----
 # OCR 服务返回的 key 是描述性小写英文，reference_ranges 使用简短大写缩写
