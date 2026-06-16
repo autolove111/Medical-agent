@@ -44,36 +44,9 @@ const router = createRouter({
   routes,
 });
 
-// 路由守卫：检查认证状态
+// 路由守卫：暂时关闭认证（开发调试阶段）
 router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore();
-
-  // 首次加载时，从 localStorage 恢复并验证认证状态
-  if (!authStore.isLoggedIn && localStorage.getItem("token")) {
-    await authStore.restoreAuth();
-  }
-
-  // 如果路由需要认证
-  if (to.meta.requiresAuth) {
-    if (authStore.isLoggedIn) {
-      // 已认证，允许访问
-      next();
-    } else {
-      // 未认证，重定向到登录页
-      next({
-        path: "/login",
-        query: { redirect: to.fullPath },
-      });
-    }
-  } else {
-    // 路由不需要认证
-    if (to.path === "/login" && authStore.isLoggedIn) {
-      // 已登录用户不能访问登录页，重定向到首页
-      next("/");
-    } else {
-      next();
-    }
-  }
+  next();  // TODO: 恢复认证逻辑
 });
 
 export default router;

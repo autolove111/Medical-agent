@@ -223,10 +223,11 @@ export default {
         authStore.restoreAuth();
       }
 
-      if (!authStore.isLoggedIn) {
-        router.push("/login");
-        return;
-      }
+      // TODO: 恢复登录检查
+      // if (!authStore.isLoggedIn) {
+      //   router.push("/login");
+      //   return;
+      // }
 
       window.addEventListener("beforeunload", handlePageClose);
 
