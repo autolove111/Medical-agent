@@ -94,6 +94,7 @@ async def upload_report(
 
     # Step 3: 联动分析
     correlations = pipeline.analyze_correlations(report)
+    corr_matches = correlations.get("matches", [])
 
     # Step 4: 持久化（JSON 文件 + session_data 表）
     pipeline.save_report(report)
@@ -141,7 +142,6 @@ async def upload_report(
     ]
 
     # 联动分析摘要
-    corr_matches = correlations.get("matches", [])
     corr_summary = [m.name for m in corr_matches] if corr_matches else []
 
     logger.info(
@@ -155,6 +155,8 @@ async def upload_report(
         indicators=api_indicators,
         abnormal_count=report.abnormal_count,
         normal_count=report.normal_count,
+        report_date=report.report_date,
+        ocr_mock=bool(ocr_result.get("mock")),
         raw_ocr_text=report.raw_ocr_text[:5000],  # 限制返回长度
     )
 

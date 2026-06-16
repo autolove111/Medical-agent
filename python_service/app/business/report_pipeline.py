@@ -10,12 +10,15 @@ import hashlib
 import json
 import logging
 import os
+import shutil
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
 
+from core.config import settings
 from app.business.lab_report import LabReport, LabIndicator
 from app.business.indicator_classifier import batch_classify
 from app.business.correlation_engine import CorrelationEngine
@@ -23,7 +26,9 @@ from app.business.correlation_engine import CorrelationEngine
 logger = logging.getLogger(__name__)
 
 # OCR 服务地址
-OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL", "http://localhost:8001")
+OCR_SERVICE_URL = settings.OCR_SERVICE_URL.rstrip("/")
+OCR_SERVICE_TIMEOUT = settings.OCR_SERVICE_TIMEOUT
+OCR_ALLOW_MOCK_FALLBACK = os.getenv("OCR_ALLOW_MOCK_FALLBACK", "false").lower() == "true"
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "uploads")
 REPORT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "reports")
 
@@ -38,32 +43,79 @@ class ReportPipeline:
 
     async def call_ocr(self, file_path: str) -> dict:
         """
-        调用 OCR 服务（优先级: PaddleOCR 本地 > 云 OCR > Mock）
+        调用 OCR 服务。
 
-        - 先尝试 PaddleOCR 本地服务（:8001 的 /api/v1/analyze-vision）
-        - 不可用时回退 Mock 数据
+        默认要求真实 OCR 成功，避免演示 Mock 数据伪装成识别结果。
+        如需演示模式，可设置 OCR_ALLOW_MOCK_FALLBACK=true。
         """
         url = f"{OCR_SERVICE_URL}/api/v1/analyze-vision"
+        ocr_file_path = self._prepare_ocr_file(file_path)
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.post(url, json={"path": file_path, "force_recheck": False})
+            async with httpx.AsyncClient(timeout=OCR_SERVICE_TIMEOUT, trust_env=False) as client:
+                resp = await client.post(url, json={"path": ocr_file_path, "force_recheck": False})
                 resp.raise_for_status()
                 result = resp.json()
-                # 检查是否是 PaddleOCR 返回
                 if "error" in result and result["error"]:
                     logger.warning("OCR service returned error: %s", result["error"])
-                    return self._mock_ocr()
-                engine = "PaddleOCR" if "PaddleOCR" in str(result) else "cloud"
-                logger.info("OCR success via %s: %d indicators",
-                            engine, result.get("gat_structured", {}).get("mapped_count", 0))
+                    if OCR_ALLOW_MOCK_FALLBACK:
+                        return self._mock_ocr(reason=result["error"])
+                    raise RuntimeError(result["error"])
+                logger.info(
+                    "OCR success via %s: %d indicators",
+                    result.get("engine", "unknown"),
+                    result.get("gat_structured", {}).get("mapped_count", 0),
+                )
                 return result
+        except httpx.HTTPStatusError as e:
+            body = e.response.text[:1000] if e.response is not None else ""
+            logger.warning("OCR service returned HTTP error: %s body=%s", e, body)
+            if OCR_ALLOW_MOCK_FALLBACK:
+                return self._mock_ocr(reason=f"{e}; body={body}")
+            raise RuntimeError(
+                f"真实 OCR 服务返回 HTTP 错误 {e.response.status_code if e.response else 'unknown'}，"
+                f"已拒绝使用内置演示数据。响应内容: {body}"
+            ) from e
         except Exception as e:
-            logger.warning("OCR service unavailable (%s), using mock data", e)
-            return self._mock_ocr()
+            logger.warning("OCR service unavailable: %s", e)
+            if OCR_ALLOW_MOCK_FALLBACK:
+                return self._mock_ocr(reason=str(e))
+            raise RuntimeError(
+                f"无法连接真实 OCR 服务 {url}，已拒绝使用内置演示数据。"
+                f"原始错误: {e}"
+            ) from e
+        finally:
+            if ocr_file_path != file_path:
+                try:
+                    os.remove(ocr_file_path)
+                except OSError:
+                    pass
 
-    def _mock_ocr(self) -> dict:
+    @staticmethod
+    def _prepare_ocr_file(file_path: str) -> str:
+        """
+        PaddleOCR/OpenCV 在 Windows 上容易被中文路径影响。
+        调用 OCR 前复制到系统临时目录中的 ASCII 文件名，识别结束后删除。
+        """
+        file_path = os.path.abspath(os.path.normpath(file_path))
+        try:
+            file_path.encode("ascii")
+            return file_path
+        except UnicodeEncodeError:
+            pass
+
+        ext = os.path.splitext(file_path)[1] or ".jpg"
+        tmp_dir = os.path.join(tempfile.gettempdir(), "medagent_ocr")
+        os.makedirs(tmp_dir, exist_ok=True)
+        tmp_path = os.path.join(tmp_dir, f"{uuid.uuid4().hex}{ext}")
+        shutil.copy2(file_path, tmp_path)
+        logger.info("Copied OCR input to ASCII temp path: %s -> %s", file_path, tmp_path)
+        return tmp_path
+
+    def _mock_ocr(self, reason: str = "") -> dict:
         """生成模拟 OCR 结果，用于演示和测试"""
         return {
+            "mock": True,
+            "mock_reason": reason,
             "cached": False,
             "analysis": [],
             "full_extraction": [

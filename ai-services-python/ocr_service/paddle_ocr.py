@@ -19,19 +19,23 @@ logger = logging.getLogger("paddle_ocr")
 _KEY_ALIAS: dict[str, str] = {
     "cr": "creatinine", "crea": "creatinine", "creat": "creatinine",
     "bun": "bun", "urea": "bun",
-    "ua": "uric_acid", "la": "uric_acid", "glu": "glucose",
+    "ua": "uric_acid", "uric": "uric_acid", "la": "uric_acid", "glu": "glucose",
     "hb": "hemoglobin", "hgb": "hemoglobin", "hct": "hematocrit",
     "wbc": "wbc", "rbc": "rbc", "plt": "plt",
     "alt": "alt", "ast": "ast", "ggt": "ggt", "alp": "alp",
+    "ggty": "ggt",
     "tbil": "tbil", "dbil": "dbil", "tp": "total_protein",
     "alb": "albumin", "tg": "triglyceride", "cho": "cholesterol",
     "chol": "cholesterol", "ldl": "ldl", "hdl": "hdl",
     "na": "sodium", "k": "potassium", "cl": "chloride",
     "ca": "calcium", "mg": "magnesium", "p": "phosphorus",
+    "phos": "phosphorus", "po4": "phosphorus",
     "tsh": "tsh", "t3": "t3", "t4": "t4", "crp": "crp",
+    "hcrp": "crp",
     "mcv": "mcv", "mch": "mch", "mchc": "mchc", "rdw": "rdw",
     "ne": "ne", "ly": "ly", "mo": "mo", "eo": "eo", "ba": "ba",
     "ck": "ck", "ldh": "ldh", "bnp": "bnp",
+    "ckmb": "ck_mb", "ck-mb": "ck_mb",
     "egfr": "egfr", "gfr": "egfr",
     "血肌酐": "creatinine", "肌酐": "creatinine",
     "尿素氮": "bun", "尿素": "bun",
@@ -54,8 +58,16 @@ _KEY_ALIAS: dict[str, str] = {
 
 def _normalize_key(name: str) -> str:
     n = name.strip().lower().replace(" ", "").replace("（", "(").replace("）", ")")
+    n = re.sub(r"^[\d*★#\s]+", "", n)
     if n in _KEY_ALIAS:
         return _KEY_ALIAS[n]
+    code_match = re.match(r"([a-z][a-z0-9/_-]*)", n)
+    if code_match:
+        code = code_match.group(1).rstrip("-_/")
+        if code.startswith("co2"):
+            return "co2"
+        if code in _KEY_ALIAS:
+            return _KEY_ALIAS[code]
     try:
         from app.business.indicator_classifier import _resolve_key
         r = _resolve_key(n)
@@ -225,18 +237,39 @@ class PaddleLabOCR:
             # 文本宽度太窄，不是表格布局
             return []
 
-        rows = self._group_by_y(items, tolerance=45)
+        rows = self._group_by_y(items, tolerance=8)
         parsed = []
         for row_items in rows:
             row_items.sort(key=lambda it: it["x"])
-            ind = self._parse_table_row(row_items)
-            if ind:
-                parsed.append(ind)
+            for segment in self._split_row_segments(row_items):
+                ind = self._parse_table_row(segment)
+                if ind:
+                    parsed.append(ind)
 
         # 表格解析至少要有 2 个结果才认为有效
         if len(parsed) < 2:
             return []
         return parsed
+
+    @staticmethod
+    def _split_row_segments(items: list[dict]) -> list[list[dict]]:
+        """
+        常见检验单会把表格拆成左右两栏。PaddleOCR 按 y 合并后，
+        同一行可能同时包含左右两栏的两个检验项，必须先按 x 拆开。
+        """
+        if len(items) < 6:
+            return [items]
+
+        x_min = min(it["x"] for it in items)
+        x_max = max(it["x"] for it in items)
+        if x_max - x_min < 650:
+            return [items]
+
+        midpoint = x_min + (x_max - x_min) / 2
+        left = [it for it in items if it["x"] < midpoint]
+        right = [it for it in items if it["x"] >= midpoint]
+        segments = [seg for seg in (left, right) if len(seg) >= 2]
+        return segments or [items]
 
     @staticmethod
     def _group_by_y(items: list[dict], tolerance: float = 45) -> list[list[dict]]:
@@ -258,6 +291,10 @@ class PaddleLabOCR:
         从一行文本块中提取: 中文名 / 英文缩写 / 数值 / 参考范围 / 单位
         硬编码 X 坐标阈值（适用于常见化验单列宽比例）
         """
+        seq_result = self._parse_table_row_by_sequence(items)
+        if seq_result:
+            return seq_result
+
         # 动态计算列的 X 分界点（适用于不同缩放比例）
         x_values = sorted(it["x"] for it in items)
         if len(x_values) < 2:
@@ -280,13 +317,17 @@ class PaddleLabOCR:
             # 跳过纯序号
             if re.match(r'^\d{1,2}$', t):
                 continue
+            if any(header in t for header in ("序号", "检验项目", "结果", "提示", "单位", "参考区间")):
+                continue
 
             if x < col_name:
-                if re.search(r'[一-鿿]', t) and len(t) > len(name):
-                    name = t
-                elif not re.search(r'[一-鿿]', t) and len(t) >= 2:
-                    if not eng or len(t) < len(eng):
-                        eng = t
+                cleaned = re.sub(r"^\d+", "", t).strip()
+                if re.search(r'[A-Za-z]', cleaned):
+                    m = re.search(r'[A-Za-z][A-Za-z0-9/_-]*', cleaned)
+                    if m:
+                        eng = m.group(0)
+                if re.search(r'[一-鿿A-Za-z]', cleaned) and len(cleaned) > len(name):
+                    name = cleaned
             elif x < col_value:
                 vm = re.search(r'(\d+\.?\d*)', t)
                 if vm and value is None:
@@ -304,6 +345,79 @@ class PaddleLabOCR:
             return None
 
         key = _normalize_key(eng or name)
+        return {
+            "name": name, "eng": eng.lower() if eng else "",
+            "key": key, "value": value,
+            "unit": unit, "ref_range": ref_range,
+        }
+
+    def _parse_table_row_by_sequence(self, items: list[dict]) -> Optional[dict]:
+        """
+        按顺序解析常见检验单行：序号、项目名、结果、单位/参考范围。
+        这比列宽比例更能适配 OCR 把“单位+参考范围”合成一个文本块的情况。
+        """
+        sorted_items = sorted(items, key=lambda it: it["x"])
+        header_words = ("序号", "检验项目", "结果", "提示", "单位", "参考区间")
+
+        name = ""
+        name_index = -1
+        eng = ""
+
+        for idx, it in enumerate(sorted_items):
+            text = it["text"].strip()
+            if not text or any(word in text for word in header_words):
+                continue
+            if re.match(r"^\d{1,2}$", text):
+                continue
+            if re.match(r"^[A-Za-z]$", text):
+                continue
+            if not re.search(r"[A-Za-z一-鿿]", text):
+                continue
+            if re.match(r"^(?:mmol/L|umol/L|μmol/L|g/L|mg/L|U/L)", text, re.IGNORECASE):
+                continue
+
+            cleaned = re.sub(r"^\d+", "", text).strip()
+            name = cleaned
+            name_index = idx
+            m = re.search(r"[A-Za-z][A-Za-z0-9/_-]*", cleaned)
+            if m:
+                eng = m.group(0)
+            break
+
+        if not name or name_index < 0:
+            return None
+
+        value = None
+        value_index = -1
+        for idx, it in enumerate(sorted_items[name_index + 1:], start=name_index + 1):
+            text = it["text"]
+            vm = re.search(r"[-+]?\d+\.?\d*", text)
+            if vm:
+                value = float(vm.group(0))
+                value_index = idx
+                break
+
+        if value is None:
+            return None
+
+        trailing = " ".join(it["text"] for it in sorted_items[value_index + 1:])
+        unit = ""
+        um = re.search(
+            r"(?:μmol/L|umol/L|mmol/L|×10[⁹¹²]/L|g/L|g/dL|mg/L|mg/dL|U/L|mIU/L|nmol/L|pg/mL|fL|pg|%|mL/min)",
+            trailing,
+            re.IGNORECASE,
+        )
+        if um:
+            unit = um.group(0)
+
+        ref_range = ""
+        rm = re.search(r"(\d+\.?\d*\s*[-~]\s*\d+\.?\d*|[<＞>]\s*\d+\.?\d*)", trailing)
+        if rm:
+            ref_range = rm.group(1)
+
+        key = _normalize_key(eng or name)
+        if not key:
+            return None
         return {
             "name": name, "eng": eng.lower() if eng else "",
             "key": key, "value": value,

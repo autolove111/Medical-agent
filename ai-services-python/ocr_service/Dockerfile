@@ -23,4 +23,4 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health').read()" || exit 1
 
 EXPOSE 8001
-CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "paddle_server:app", "--host", "0.0.0.0", "--port", "8001"]

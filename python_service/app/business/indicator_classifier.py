@@ -265,6 +265,7 @@ def batch_classify(
     """
     results = []
     for key, value in patient_labs.items():
+        result = None
         # 通过别名解析
         resolved = _resolve_key(key)
         if resolved in REFERENCE_RANGES:

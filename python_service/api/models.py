@@ -35,6 +35,8 @@ class ReportUploadResponse(BaseModel):
     indicators: List[IndicatorItem] = Field(default_factory=list, description="提取到的检验指标")
     abnormal_count: int = Field(default=0)
     normal_count: int = Field(default=0)
+    report_date: str = Field(default="", description="检验日期")
+    ocr_mock: bool = Field(default=False, description="是否使用了内置 Mock OCR 数据")
     raw_ocr_text: str = Field(default="", description="OCR 原始识别文本")
 
 

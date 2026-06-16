@@ -30,8 +30,9 @@ def resolve_embedding_model_source() -> str:
     )
 
     # 相对路径基于 python_service/ 目录解析（与 .env 同目录）
+    # __file__ = service/rag/embedding.py → 上2级 = python_service/
     if not os.path.isabs(configured_source):
-        _env_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        _env_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         configured_source = os.path.normpath(os.path.join(_env_dir, configured_source))
 
     if os.path.isdir(configured_source):

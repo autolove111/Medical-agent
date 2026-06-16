@@ -65,7 +65,7 @@ class Settings(BaseSettings):
 
     OCR_SERVICE_URL: str = os.getenv("OCR_SERVICE_URL", "http://localhost:8001")
     GRAPH_SERVICE_URL: str = os.getenv("GRAPH_SERVICE_URL", "http://localhost:8000")
-    OCR_SERVICE_TIMEOUT: float = 60.0
+    OCR_SERVICE_TIMEOUT: float = float(os.getenv("OCR_SERVICE_TIMEOUT", "180"))
     GRAPH_RETRIEVAL_ENABLED: bool = True
     GRAPH_RETRIEVAL_TOP_EDGES: int = 8
 

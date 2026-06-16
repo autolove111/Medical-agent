@@ -28,10 +28,20 @@ _engine = None
 
 
 def _get_engine():
-    global _engine
+    global _engine, DATABASE_URL
     if _engine is None:
         if "postgresql" in DATABASE_URL.lower():
-            _engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
+            try:
+                import psycopg2  # noqa
+                _engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
+                logger.info("Using PostgreSQL")
+            except ImportError:
+                logger.warning("psycopg2 not installed, falling back to SQLite")
+                DATABASE_URL = f"sqlite:///{os.path.join(DATA_DIR, 'medagent.db')}"
+                _engine = create_engine(
+                    DATABASE_URL, echo=False,
+                    connect_args={"check_same_thread": False},
+                )
         else:
             _engine = create_engine(
                 DATABASE_URL, echo=False,

@@ -13,8 +13,13 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import importlib.util
+import shutil
+import tempfile
+import uuid
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 
@@ -40,6 +45,21 @@ def _get_ocr():
     return _ocr
 
 
+def _prepare_image_path_safe(file_path: str) -> tuple[str, bool]:
+    normalized = os.path.abspath(os.path.normpath(file_path))
+    try:
+        normalized.encode("ascii")
+        return normalized, False
+    except UnicodeEncodeError:
+        ext = os.path.splitext(normalized)[1] or ".jpg"
+        tmp_dir = os.path.join(tempfile.gettempdir(), "medagent_ocr")
+        os.makedirs(tmp_dir, exist_ok=True)
+        tmp_path = os.path.join(tmp_dir, f"{uuid.uuid4().hex}{ext}")
+        shutil.copy2(normalized, tmp_path)
+        logger.info("Copied non-ASCII OCR path to temp: %s -> %s", normalized, tmp_path)
+        return tmp_path, True
+
+
 # ---- API 模型 ----
 
 class AnalyzeRequest(BaseModel):
@@ -59,7 +79,7 @@ async def analyze_vision(request: AnalyzeRequest):
         path:          图片本地路径
         force_recheck: 是否强制重新识别（忽略缓存）
     """
-    file_path = request.path
+    file_path = os.path.abspath(os.path.normpath(request.path))
 
     if not os.path.exists(file_path):
         return {
@@ -71,24 +91,63 @@ async def analyze_vision(request: AnalyzeRequest):
 
     try:
         ocr = _get_ocr()
-        result = ocr.recognize(file_path)
+        image_path, should_cleanup = _prepare_image_path_safe(file_path)
+        try:
+            result = ocr.recognize(image_path)
+        finally:
+            if should_cleanup:
+                try:
+                    os.remove(image_path)
+                except OSError:
+                    pass
         logger.info("OCR success: %d indicators (%s coverage)",
                      result["gat_structured"]["mapped_count"],
                      result["gat_structured"]["coverage"])
-        return {"cached": False, "analysis": [], **result}
+        return {"cached": False, "analysis": [], "engine": "PaddleOCR", **result}
     except Exception as e:
         logger.error("OCR failed: %s", e, exc_info=True)
-        return {
-            "cached": False, "analysis": [], "full_extraction": [],
-            "gat_structured": {"patient_labs": {}, "base_labs": {}, "ratio_labs": {},
-                               "mapped_count": 0, "total_items": 0, "coverage": "0%"},
-            "error": f"OCR 识别失败: {e}",
-        }
+        return JSONResponse(
+            status_code=200,
+            content={
+                "cached": False, "analysis": [], "full_extraction": [],
+                "gat_structured": {"patient_labs": {}, "base_labs": {}, "ratio_labs": {},
+                                   "mapped_count": 0, "total_items": 0, "coverage": "0%"},
+                "error": f"OCR 识别失败: {e}",
+            },
+        )
 
 
 @app.get("/api/v1/health")
 async def health():
-    return {"status": "healthy", "engine": "PaddleOCR (PP-OCRv4)", "gpu": os.getenv("PADDLE_GPU", "false")}
+    deps = {
+        "paddleocr": importlib.util.find_spec("paddleocr") is not None,
+        "paddle": importlib.util.find_spec("paddle") is not None,
+    }
+    return {
+        "status": "healthy" if all(deps.values()) else "dependency_missing",
+        "engine": "PaddleOCR (PP-OCRv4)",
+        "gpu": os.getenv("PADDLE_GPU", "false"),
+        "dependencies": deps,
+        "model_loaded": _ocr is not None and getattr(_ocr, "_loaded", False),
+        "pid": os.getpid(),
+        "cwd": os.getcwd(),
+        "file": __file__,
+    }
+
+
+@app.get("/api/v1/ready")
+async def ready():
+    """
+    加载 PaddleOCR 模型并返回就绪状态。
+    首次调用可能较慢，用来区分“端口已启动”和“OCR 真正可识别”。
+    """
+    try:
+        ocr = _get_ocr()
+        ocr._lazy_load()
+        return {"status": "ready", "engine": "PaddleOCR", "gpu": os.getenv("PADDLE_GPU", "false")}
+    except Exception as e:
+        logger.error("PaddleOCR readiness check failed: %s", e, exc_info=True)
+        return {"status": "not_ready", "error": str(e)}
 
 
 # ---- 启动 ----
