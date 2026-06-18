@@ -15,6 +15,7 @@ from typing import List, Dict, Tuple, Optional
 from langchain_core.documents import Document
 
 from harness.memory.knowledge.reference_ranges import REFERENCE_RANGES, format_reference_text
+from core.config import settings
 from service.rag.query_rewriter import rewrite_query, extract_keywords
 
 logger = logging.getLogger(__name__)
@@ -105,12 +106,12 @@ def _match_reference_ranges(query: str, keywords: List[str]) -> List[Document]:
 # 语义检索层：FAISS 向量检索
 # ============================================================
 
-def _semantic_search(query: str, retriever, top_k: int = 5) -> List[Document]:
+def _semantic_search(query: str, retriever, recall_k: int = 20) -> List[Document]:
     """FAISS 语义检索，返回 top_k 篇文档"""
     try:
         docs = list(retriever.invoke(query))
-        if len(docs) > top_k:
-            docs = docs[:top_k]
+        if len(docs) > recall_k:
+            docs = docs[:recall_k]
         return docs
     except Exception as exc:
         logger.warning("Semantic search failed: %s", exc)
@@ -172,40 +173,57 @@ def _truncate_doc(doc: Document, max_len: int = MAX_DOC_LENGTH) -> Document:
 
 
 def rerank_and_truncate(
+    query: str,
     docs: List[Document],
     keywords: List[str],
     max_docs: int = 5,
     max_len: int = MAX_DOC_LENGTH,
+    score_threshold: float = 0.35,
 ) -> List[Document]:
+    """Rerank via Cross-Encoder (semantic) with keyword-scoring fallback.
+
+    1. CrossEncoder scores each (query, doc) pair → semantic relevance
+    2. Fallback to keyword-hit scoring if reranker unavailable
+    3. Deduplicate by content fingerprint
+    4. Truncate over-long docs
+    5. Return top max_docs above score_threshold
     """
-    重排序 + 去重 + 截断：
-    1. 按关键词命中率降序排列
-    2. 去重（按内容指纹）
-    3. 截断过长文档
-    4. 返回 top max_docs
-    """
-    # 计算分数
+    try:
+        from service.rag.reranker import get_reranker
+        reranker = get_reranker()
+        if reranker.is_available:
+            logger.info("Reranker: using CrossEncoder (semantic)")
+            ranked = reranker.rerank(query, docs, top_k=max_docs, threshold=score_threshold)
+            # Dedup + truncate
+            ranked = _deduplicate_docs(ranked)
+            ranked = [_truncate_doc(d, max_len) for d in ranked]
+            ranked = ranked[:max_docs]
+            logger.info("Reranker: %d docs after CrossEncoder rerank", len(ranked))
+            return ranked
+    except ImportError:
+        logger.debug("Reranker module not available, using keyword fallback")
+    except Exception as exc:
+        logger.warning("Reranker failed, using keyword fallback: %s", exc)
+
+    # ── Fallback: keyword-hit scoring ──
     scored: List[Tuple[float, Document]] = []
     for doc in docs:
         score = _keyword_score(doc, keywords)
         scored.append((score, doc))
 
-    # 按分数降序
     scored.sort(key=lambda x: x[0], reverse=True)
 
-    # 去重
     seen = set()
     ranked = []
     for score, doc in scored:
+        if score < score_threshold:
+            continue
         fingerprint = doc.page_content[:100].strip()
         if fingerprint not in seen:
             seen.add(fingerprint)
             ranked.append(doc)
 
-    # 截断
     ranked = [_truncate_doc(doc, max_len) for doc in ranked]
-
-    # 限制数量
     ranked = ranked[:max_docs]
 
     if ranked:
@@ -213,11 +231,13 @@ def rerank_and_truncate(
             f"{_keyword_score(d, keywords):.2f}" for d in ranked
         )
         logger.info(
-            "Reranked %d docs | scores=[%s] | keywords=%s",
+            "Reranked (keyword fallback) %d docs | scores=[%s] | keywords=%s",
             len(ranked), scores_str, keywords,
         )
 
     return ranked
+
+
 
 
 # ============================================================
@@ -277,7 +297,7 @@ class HybridRetriever:
         logger.info("Reference range match: %d docs", len(ref_docs))
 
         # Step 3: 语义检索（FAISS）
-        faiss_docs = _semantic_search(search_query, self.faiss_retriever, top_k=top_k)
+        faiss_docs = _semantic_search(search_query, self.faiss_retriever, recall_k=settings.RERANKER_TOP_K)
         meta["faiss_docs"] = len(faiss_docs)
         logger.info("FAISS semantic search: %d docs", len(faiss_docs))
 
@@ -286,7 +306,13 @@ class HybridRetriever:
         all_docs = _deduplicate_docs(all_docs)
 
         # Step 5: 重排序 + 截断
-        ranked = rerank_and_truncate(all_docs, keywords, max_docs=top_k)
+        ranked = rerank_and_truncate(
+            query=query,
+            docs=all_docs,
+            keywords=keywords,
+            max_docs=settings.RERANKER_FINAL_K,
+            score_threshold=settings.RERANKER_SCORE_THRESHOLD,
+        )
 
         logger.info(
             "Hybrid search result: %d docs (ref=%d + faiss=%d) -> %d ranked",

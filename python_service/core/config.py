@@ -43,27 +43,48 @@ class Settings(BaseSettings):
     RAG_USE_LOCAL_EMBEDDING: bool = os.getenv("RAG_USE_LOCAL_EMBEDDING", "true").lower() == "true"
     RAG_LOCAL_EMBEDDING_PATH: str = os.getenv(
         "RAG_LOCAL_EMBEDDING_PATH",
-        str(PROJECT_DIR / "models" / "bce-embedding-base_v1"),
+        str(PROJECT_DIR / "models" / "Zhinao-ChineseModernBert-Embedding"),
     )
     RAG_EMBEDDING_DEVICE: str = os.getenv("RAG_EMBEDDING_DEVICE", "cpu")
 
+    # OpenAI-compatible Embedding API
+    RAG_EMBEDDING_API_URL: str = os.getenv("RAG_EMBEDDING_API_URL", "https://api.openai.com/v1/embeddings")
+    RAG_EMBEDDING_API_KEY: str = os.getenv("RAG_EMBEDDING_API_KEY", "")
+    RAG_EMBEDDING_MODEL_NAME: str = os.getenv("RAG_EMBEDDING_MODEL_NAME", "text-embedding-3-small")
+    RAG_EMBEDDING_API_TIMEOUT: int = int(os.getenv("RAG_EMBEDDING_API_TIMEOUT", "30"))
+
+    # ©¤©¤ Reranker (Cross-Encoder) ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
+    RERANKER_ENABLED: bool = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
+    RERANKER_MODEL_PATH: str = os.getenv(
+        "RERANKER_MODEL_PATH",
+        str(PROJECT_DIR / "models" / "bge-reranker-base"),
+    )
+    RERANKER_DEVICE: str = os.getenv("RERANKER_DEVICE", "cpu")
+    RERANKER_TOP_K: int = int(os.getenv("RERANKER_TOP_K", "20"))
+    RERANKER_FINAL_K: int = int(os.getenv("RERANKER_FINAL_K", "5"))
+    RERANKER_SCORE_THRESHOLD: float = float(os.getenv("RERANKER_SCORE_THRESHOLD", "0.1"))
     TEMPERATURE: float = 0.7
     MAX_TOKENS: int = 2000
 
-    # ä¸Šä¸‹æ–‡çª—å£åˆ†é…é…ç½®
-    # æ¨¡å‹ä¸Šä¸‹æ–‡çª—å£å¤§å°ï¼ˆtokensï¼‰ï¼Œå½“å‰æ¨¡å‹ Qwen2.5-7B-Instruct æ”¯æŒ 32768
+    # ÉÏÏÂÎÄ´°¿Ú·ÖÅäÅäÖÃ
+    # Ä£ĞÍÉÏÏÂÎÄ´°¿Ú´óĞ¡£¨tokens£©£¬µ±Ç°Ä£ĞÍ Qwen2.5-7B-Instruct Ö§³Ö 32768
     CONTEXT_WINDOW: int = int(os.getenv("CONTEXT_WINDOW", "32768"))
-    # æç¤ºè¯å æ¯”ï¼ˆ60%ï¼‰ï¼Œç”¨äºç³»ç»Ÿæç¤ºã€ä»»åŠ¡æŒ‡ä»¤ã€å†å²å¯¹è¯ç­‰
+    # ÌáÊ¾´ÊÕ¼±È£¨60%£©£¬ÓÃÓÚÏµÍ³ÌáÊ¾¡¢ÈÎÎñÖ¸Áî¡¢ÀúÊ·¶Ô»°µÈ
     PROMPT_RATIO: float = float(os.getenv("PROMPT_RATIO", "0.6"))
-    # æ¨¡å‹è¾“å‡ºå æ¯”ï¼ˆ30%ï¼‰ï¼Œç”¨äºæ¨¡å‹ç”Ÿæˆå›å¤
+    # Ä£ĞÍÊä³öÕ¼±È£¨30%£©£¬ÓÃÓÚÄ£ĞÍÉú³É»Ø¸´
     OUTPUT_RATIO: float = float(os.getenv("OUTPUT_RATIO", "0.3"))
-    # ç¼“å†²åŒºå æ¯”ï¼ˆ10%ï¼‰ï¼Œç”¨äºé˜²æ­¢ token æº¢å‡ºå’Œç‰¹æ®Šæ ‡è®°
+    # »º³åÇøÕ¼±È£¨10%£©£¬ÓÃÓÚ·ÀÖ¹ token Òç³öºÍÌØÊâ±ê¼Ç
     BUFFER_RATIO: float = float(os.getenv("BUFFER_RATIO", "0.1"))
 
     SERVICE_HOST: str = "0.0.0.0"
     SERVICE_PORT: int = 8000
 
     OCR_SERVICE_URL: str = os.getenv("OCR_SERVICE_URL", "http://localhost:8001")
+    OCR_ENGINE: str = os.getenv("OCR_ENGINE", "mineru_api")
+    MINERU_API_BASE_URL: str = os.getenv("MINERU_API_BASE_URL", "https://mineru.net")
+    MINERU_API_TOKEN: str = os.getenv("MINERU_API_TOKEN", "")
+    MINERU_POLL_INTERVAL: float = float(os.getenv("MINERU_POLL_INTERVAL", "3.0"))
+    MINERU_POLL_TIMEOUT: float = float(os.getenv("MINERU_POLL_TIMEOUT", "300.0"))
     GRAPH_SERVICE_URL: str = os.getenv("GRAPH_SERVICE_URL", "http://localhost:8000")
     OCR_SERVICE_TIMEOUT: float = 60.0
     GRAPH_RETRIEVAL_ENABLED: bool = True
