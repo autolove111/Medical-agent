@@ -14,7 +14,6 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from api.models import ReportUploadResponse, IndicatorItem
 from app.business.report_pipeline import get_report_pipeline
 from app.business.lab_report import LabReport
-from app.persistence.repositories.session_data_repo import SessionDataRepo
 
 logger = logging.getLogger(__name__)
 

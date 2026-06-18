@@ -92,16 +92,6 @@ export default {
     return apiClient.delete(url);
   },
 
-  async checkHealth() {
-    try {
-      const response = await apiClient.get("/v1/health");
-      return response.data;
-    } catch (error) {
-      console.error("Health check failed:", error);
-      throw error;
-    }
-  },
-
   async analyzeReport(reportContent) {
     try {
       const response = await apiClient.post("/v1/agent/analyze-report", null, {
@@ -272,20 +262,26 @@ export default {
     return response.data
   },
 
-  async chatSync(userId, message, reportId = null, useAgentLoop = false) {
-    const response = await apiClient.post("/chat", {
-      user_id: userId || "default", message, report_id: reportId, use_agent_loop: useAgentLoop,
-    })
-    return response.data
-  },
-
-  async streamChatV2(userId, message, reportId, onChunk, onError, onDone) {
+  /**
+   * ReAct 多步推理流式对话
+   * 实时推送 Thought → Action → Observation 推理步骤
+   *
+   * @param {string} userId - 用户 ID
+   * @param {string} message - 用户消息
+   * @param {string|null} reportId - 关联报告 ID
+   * @param {string} sessionId - 会话 ID
+   * @param {function} onEvent - 事件回调 (event) => void
+   * @param {function} onError - 错误回调 (errorMsg) => void
+   * @param {function} onDone - 完成回调 () => void
+   */
+  async streamReAct(userId, message, reportId, sessionId, onEvent, onError, onDone) {
     const params = new URLSearchParams()
     params.set("user_id", userId || "default")
+    params.set("session_id", sessionId || "default")
     params.set("message", message)
     if (reportId) params.set("report_id", reportId)
     const prefix = ((apiClient.defaults && apiClient.defaults.baseURL) || "").replace(/\/$/, "")
-    const url = `${prefix}/chat/stream?${params.toString()}`
+    const url = `${prefix}/chat/react-stream?${params.toString()}`
     try {
       const token = localStorage.getItem("token")
       const headers = { Accept: "text/event-stream" }
@@ -303,40 +299,29 @@ export default {
         buffer = lines.pop() || ""
         for (const line of lines) {
           if (line.startsWith("data: ")) {
-            const payload = line.slice(6)
-            if (payload.startsWith("{")) {
-              try {
-                const data = JSON.parse(payload)
-                if (data.done) { if (onDone) onDone(data); return }
-                else if (data.error) { if (onError) onError(data.error); return }
-                else if (data.content !== undefined) onChunk(data.content)
-              } catch (e) { onChunk(payload) }
-            } else { onChunk(payload) }
+            const payload = line.slice(6).trim()
+            if (!payload) continue
+            try {
+              const event = JSON.parse(payload)
+              if (event.type === "react_end") {
+                if (onDone) onDone()
+                return
+              } else if (event.type === "error") {
+                if (onError) onError(event.message)
+                return
+              } else {
+                if (onEvent) onEvent(event)
+              }
+            } catch (e) {
+              console.warn("[streamReAct] JSON parse error:", e, payload)
+            }
           }
         }
       }
-      if (onDone) onDone({})
-    } catch (err) { if (onError) onError(err.message) }
-  },
-
-  async getChatSources(userId = "default") {
-    const response = await apiClient.get(`/chat/sources?user_id=${userId}`)
-    return response.data
-  },
-
-  async getUserProfile(userId = "default") {
-    const response = await apiClient.get(`/user/profile?user_id=${userId}`)
-    return response.data
-  },
-
-  async updateUserProfileV2(profile) {
-    const response = await apiClient.put("/user/profile", profile)
-    return response.data
-  },
-
-  async resetSession(userId = "default") {
-    const response = await apiClient.post(`/user/reset?user_id=${userId}`)
-    return response.data
+      if (onDone) onDone()
+    } catch (err) {
+      if (onError) onError(err.message)
+    }
   },
 
   async analyzeVision(filePath, model = null) {

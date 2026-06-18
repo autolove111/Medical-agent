@@ -47,6 +47,6 @@ def get_session() -> Session:
 
 def init_db():
     """创建所有表（首次启动时调用）"""
-    import app.persistence.models  # noqa: F401 — 注册所有 ORM 模型
+    import harness.memory.persistence.models  # noqa: F401 — 注册所有 ORM 模型
     Base.metadata.create_all(bind=engine)
     logger.info("Database initialized at %s", DATABASE_URL)

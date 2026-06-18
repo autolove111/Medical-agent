@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class ModelConfig:
     """模型配置参数，统一管理所有加载相关的超参"""
 
-    model_path: str                       # 本地模型目录路径
+    model_path: str = "../models/Qwen2.5-7B-Instruct" # 本地模型目录路径
     use_4bit: bool = True                 # 是否启用 4-bit 量化（省显存）
     quant_type: str = "nf4"               # 量化类型，nf4 是 QLoRA 推荐方案
     use_double_quant: bool = True         # 二次量化，进一步压缩显存占用
@@ -66,7 +66,7 @@ class ModelLoader:
             with cls._lock:
                 if cls._instance is None:
                     obj = super().__new__(cls)
-                    obj.config = config
+                    obj.config = config or ModelConfig()
                     cls._instance = obj
         return cls._instance
 

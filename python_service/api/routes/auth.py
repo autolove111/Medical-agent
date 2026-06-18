@@ -12,7 +12,9 @@ import time
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.persistence.repositories.patient_profile_repo import PatientProfileRepo
+from harness.memory.persistence.repositories.profile_repo import ProfileRepo
+from harness.memory.persistence.models import PatientProfile
+from app.persistence.database import get_session
 
 logger = logging.getLogger(__name__)
 
@@ -67,19 +69,13 @@ async def register(req: RegisterRequest):
     if req.password != req.confirmPassword:
         raise HTTPException(status_code=400, detail="两次密码不一致")
 
-    repo = PatientProfileRepo()
-    if repo.exists(req.idNumber):
+    repo = ProfileRepo()
+    if repo.get(req.idNumber) is not None:
         raise HTTPException(status_code=400, detail="该身份证号已注册")
 
-    repo.create_or_update(
-        patient_id=req.idNumber,
-        name=req.realName,
-        age=req.age,
-    )
+    repo.save(req.idNumber, {"name": req.realName, "age": req.age})
 
     # 密码持久化到 DB
-    from app.persistence.database import get_session
-    from app.persistence.models import PatientProfile
     db = get_session()
     try:
         profile = db.query(PatientProfile).filter(PatientProfile.patient_id == req.idNumber).first()
@@ -101,12 +97,10 @@ async def register(req: RegisterRequest):
 
 @router.post("/login")
 async def login(req: LoginRequest):
-    repo = PatientProfileRepo()
-    if not repo.exists(req.idNumber):
+    repo = ProfileRepo()
+    if repo.get(req.idNumber) is None:
         raise HTTPException(status_code=401, detail="身份证号或密码错误")
 
-    from app.persistence.database import get_session
-    from app.persistence.models import PatientProfile
     db = get_session()
     try:
         profile = db.query(PatientProfile).filter(PatientProfile.patient_id == req.idNumber).first()
@@ -137,12 +131,12 @@ async def get_me(token: str = ""):
     if user_id is None:
         raise HTTPException(status_code=401, detail="token 无效或已过期")
 
-    repo = PatientProfileRepo()
+    repo = ProfileRepo()
     db_profile = repo.get(user_id)
     if db_profile is None:
         raise HTTPException(status_code=404, detail="用户不存在")
 
     return {
         "code": 200, "message": "success",
-        "data": {"user": {"idNumber": db_profile.patient_id, "realName": db_profile.name, "age": db_profile.age}},
+        "data": {"user": {"idNumber": db_profile["patient_id"], "realName": db_profile["name"], "age": db_profile["age"]}},
     }

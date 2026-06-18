@@ -96,12 +96,10 @@ app.add_middleware(
 
 from api.routes.chat import router as chat_router
 from api.routes.report import router as report_router
-from api.routes.user import router as user_router
 from api.routes.auth import router as auth_router
 
 app.include_router(chat_router)
 app.include_router(report_router)
-app.include_router(user_router)
 app.include_router(auth_router)
 
 
@@ -114,72 +112,10 @@ async def root():
         "version": "0.2.0",
         "docs": "/docs",
         "endpoints": {
-            "chat": "/api/chat",
-            "chat_stream": "/api/chat/stream",
+            "chat_react_stream": "/api/chat/react-stream",
             "report_upload": "/api/report/upload",
-            "user_profile": "/api/user/profile",
-            "health": "/api/user/health",
         },
     }
-
-# 兼容旧前端健康检查: GET /api/v1/health
-@app.get("/api/v1/health")
-async def health_v1():
-    return {"status": "UP", "service": "python_service"}
-
-# 兼容旧前端聊天接口（转发到新端点同样逻辑）
-from api.models import ChatRequest
-
-@app.post("/api/v1/agent/chat/stream")
-async def chat_stream_v1(
-    userQuery: str = "",
-    userId: str = "default",
-):
-    """兼容旧前端流式聊天 POST /api/v1/agent/chat/stream"""
-    from fastapi.responses import StreamingResponse
-    from api.routes.chat import router as chat_router
-
-    # 直接导入 chat 模块的流式逻辑（简化复用）
-    import json, asyncio
-    from api.dependencies import get_agent_pool
-    from concurrent.futures import ThreadPoolExecutor
-
-    pool = get_agent_pool()
-    agent = pool.get_or_create(userId)
-    message = userQuery
-
-    async def gen():
-        executor = ThreadPoolExecutor(max_workers=1)
-        loop = asyncio.get_event_loop()
-        q: asyncio.Queue = asyncio.Queue()
-
-        def _produce():
-            try:
-                for chunk in agent.chat_stream(message):
-                    q.put_nowait(("chunk", chunk.content))
-                q.put_nowait(("done", None))
-            except Exception as e:
-                q.put_nowait(("error", str(e)))
-
-        loop.run_in_executor(executor, _produce)
-
-        while True:
-            try:
-                kind, payload = await asyncio.wait_for(q.get(), timeout=120.0)
-            except asyncio.TimeoutError:
-                yield f"data: {json.dumps({'error': 'timeout'})}\n\n"
-                break
-            if kind == "done":
-                yield f"data: [DONE]\n\n"
-                break
-            elif kind == "error":
-                yield f"data: {json.dumps({'error': payload})}\n\n"
-                break
-            else:
-                yield f"data: {json.dumps({'content': payload})}\n\n"
-
-    return StreamingResponse(gen(), media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})
 
 
 # ---- 入口 ----

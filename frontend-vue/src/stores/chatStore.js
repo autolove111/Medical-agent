@@ -27,6 +27,7 @@ export const useChatStore = defineStore("chat", () => {
       id: Date.now(),
       role: message.role,
       content: message.content,
+      reasoningSteps: message.reasoningSteps || [],
       timestamp: new Date(),
       avatar: message.role === "user" ? userInfo.value.avatar : null,
     });

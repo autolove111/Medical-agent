@@ -7,7 +7,7 @@
       </div>
       <div class="header-right">
         <div v-if="currentUser" class="user-info">
-          <button class="user-name-btn" @click="openProfile">
+          <button class="user-name-btn">
             👤 {{ currentUser.realName }}
           </button>
           <button @click="handleLogout" class="logout-btn">登出</button>
@@ -16,7 +16,23 @@
     </div>
 
     <div class="chat-body">
-      <!-- 左侧：指标面板（上传报告后显示） -->
+      <!-- 最左侧：会话列表 -->
+      <aside class="session-panel">
+        <button class="new-session-btn" @click="createSession">＋ 新建对话</button>
+        <div class="session-list">
+          <div
+            v-for="s in sessions"
+            :key="s.id"
+            :class="['session-item', { active: s.id === currentSessionId }]"
+            @click="switchSession(s.id)"
+          >
+            <span class="session-label">{{ s.label }}</span>
+            <button class="session-delete" @click.stop="deleteSession(s.id)" title="删除">✕</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 中间：指标面板（上传报告后显示） -->
       <aside v-if="reportIndicators.length > 0" class="side-panel">
         <IndicatorPanel
           :indicators="reportIndicators"
@@ -122,33 +138,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 用户信息弹窗 -->
-    <div v-if="showProfileDialog" class="dialog-overlay">
-      <div class="dialog-box">
-        <h3>👤 个人信息</h3>
-        <div class="dialog-field">
-          <label>姓名：</label>
-          <input v-model="profileForm.realName" type="text" />
-        </div>
-        <div class="dialog-field">
-          <label>年龄：</label>
-          <input v-model.number="profileForm.age" type="number" min="0" />
-        </div>
-        <div class="dialog-field">
-          <label>药物过敏：</label>
-          <input v-model="profileForm.drugAllergy" type="text" />
-        </div>
-        <div class="dialog-field">
-          <label>病史：</label>
-          <textarea v-model="profileForm.lifetimeMedicalHistory" rows="4"></textarea>
-        </div>
-        <div class="dialog-actions">
-          <button @click="saveProfile" class="confirm-btn">保存</button>
-          <button @click="closeProfile" class="reject-btn">取消</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -185,16 +174,48 @@ export default {
     const reportIndicators = ref([]);
     const reportDate = ref("");
     const currentReportId = ref(null);
+
+    // Session 管理
+    function generateSessionId() {
+      return "sess_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+    const currentSessionId = ref(generateSessionId());
+    const sessions = ref([{ id: currentSessionId.value, label: "对话 1", createdAt: Date.now() }]);
+    let sessionCounter = 1;
+
+    function createSession() {
+      sessionCounter++;
+      const newId = generateSessionId();
+      sessions.value.unshift({ id: newId, label: `对话 ${sessionCounter}`, createdAt: Date.now() });
+      currentSessionId.value = newId;
+      chatStore.clearMessages();
+      reportIndicators.value = [];
+      currentReportId.value = null;
+    }
+
+    function switchSession(sessionId) {
+      if (sessionId === currentSessionId.value) return;
+      currentSessionId.value = sessionId;
+      chatStore.clearMessages();
+      reportIndicators.value = [];
+      currentReportId.value = null;
+    }
+
+    function deleteSession(sessionId) {
+      const idx = sessions.value.findIndex(s => s.id === sessionId);
+      if (idx === -1) return;
+      sessions.value.splice(idx, 1);
+      if (currentSessionId.value === sessionId) {
+        if (sessions.value.length > 0) {
+          switchSession(sessions.value[0].id);
+        } else {
+          createSession();
+        }
+      }
+    }
     const showMedicalDialog = ref(false);
     const currentSaveMsg = ref(null);
     const medicalForm = ref({ disease: "", status: "未康复" });
-    const showProfileDialog = ref(false);
-    const profileForm = ref({
-      realName: "",
-      age: null,
-      drugAllergy: "",
-      lifetimeMedicalHistory: "",
-    });
 
     const messages = computed(() => chatStore.messages);
     const currentUser = computed(() => authStore.user);
@@ -229,13 +250,6 @@ export default {
       }
 
       window.addEventListener("beforeunload", handlePageClose);
-
-      try {
-        await ApiService.checkHealth();
-        console.log("Backend service is healthy");
-      } catch (err) {
-        error.value = "无法连接到后端服务，请检查服务是否运行";
-      }
     });
 
     onBeforeUnmount(() => {
@@ -261,32 +275,73 @@ export default {
       error.value = null;
       scrollToBottom(); // 发送后立刻滚动到底部
 
-      // 2. 预先创建一个“空”的助手消息对象
+      // 2. 预先创建一个空的助手消息对象（含推理步骤数组）
       chatStore.addMessage({
         role: "assistant",
         content: "",
+        reasoningSteps: [],
         id: Date.now() + 1,
         timestamp: new Date(),
       });
       scrollToBottom();
 
       try {
-        await ApiService.streamChatV2(
-          "default", userMessage, currentReportId.value,
-          (chunk) => {
+        await ApiService.streamReAct(
+          "default", userMessage, currentReportId.value, currentSessionId.value,
+          (event) => {
             isStreaming.value = true
             const last = chatStore.messages[chatStore.messages.length - 1]
-            if (last && last.role === "assistant") { last.content += chunk; scrollToBottom() }
+            if (!last || last.role !== "assistant") return
+
+            switch (event.type) {
+              case "react_start":
+                // 推理开始，可选：显示加载状态
+                break
+              case "step_start":
+                // 步骤开始
+                break
+              case "thought":
+                // 思考内容 → 追加到推理步骤
+                last.reasoningSteps.push({
+                  type: "thought",
+                  step: event.step,
+                  content: event.content,
+                })
+                scrollToBottom()
+                break
+              case "tool_call":
+                // 工具调用 → 追加到推理步骤
+                last.reasoningSteps.push({
+                  type: "tool_call",
+                  step: event.step,
+                  name: event.name,
+                  args: event.args,
+                })
+                scrollToBottom()
+                break
+              case "observation":
+                // 工具结果 → 追加到推理步骤
+                last.reasoningSteps.push({
+                  type: "observation",
+                  step: event.step,
+                  name: event.name,
+                  result: event.result,
+                })
+                scrollToBottom()
+                break
+              case "final_answer":
+                // 最终答案 → 设置正文
+                last.content = event.content
+                scrollToBottom()
+                break
+            }
           },
           (e) => {
             console.error("Stream error:", e)
             error.value = "服务响应异常: " + (e || "未知错误")
           },
-          (meta) => {
-            const last = chatStore.messages[chatStore.messages.length - 1]
-            if (last && last.role === "assistant" && meta) {
-              if (meta.sources) { last.sources = meta.sources; last.showSources = false }
-            }
+          () => {
+            // onDone: 推理结束
           }
         )
       } catch (err) {
@@ -421,108 +476,6 @@ export default {
       router.push("/login");
     }
 
-    async function openProfile() {
-      showProfileDialog.value = true;
-      try {
-        const resp = await ApiService.get("/v1/user/profile");
-        const data = resp.data || resp;
-        // support both {status,data:{...}} and direct data
-        const profile = data.data || data;
-        profileForm.value.realName =
-          profile.realName || (authStore.user && authStore.user.realName) || "";
-        profileForm.value.age =
-          profile.age || (authStore.user && authStore.user.age) || null;
-        profileForm.value.drugAllergy = profile.drugAllergy || "";
-        profileForm.value.lifetimeMedicalHistory =
-          profile.lifetimeMedicalHistory || "";
-      } catch (err) {
-        // 如果后端未实现 profile 接口，则回退到本地存储的用户信息
-        profileForm.value.realName = authStore.user
-          ? authStore.user.realName
-          : "";
-        profileForm.value.age = authStore.user ? authStore.user.age : null;
-        // 尝试获取病史
-        try {
-          const mh = await ApiService.get("/v1/user/medical-history");
-          const mdata = mh.data || mh;
-          profileForm.value.lifetimeMedicalHistory = mdata.medicalHistory || "";
-        } catch (e) {
-          profileForm.value.lifetimeMedicalHistory = "";
-        }
-      }
-    }
-
-    function closeProfile() {
-      showProfileDialog.value = false;
-    }
-
-    async function saveProfile() {
-      try {
-        // 优先调用统一 profile 接口
-        const resp = await ApiService.put("/v1/user/profile", {
-          realName: profileForm.value.realName,
-          age: profileForm.value.age,
-          drugAllergy: profileForm.value.drugAllergy,
-          lifetimeMedicalHistory: profileForm.value.lifetimeMedicalHistory,
-        });
-        // 记录响应并更新前端状态
-        console.log("update profile resp:", resp);
-        authStore.updateUserInfo({
-          realName: profileForm.value.realName,
-          age: profileForm.value.age,
-          drugAllergy: profileForm.value.drugAllergy,
-          lifetimeMedicalHistory: profileForm.value.lifetimeMedicalHistory,
-        });
-        showProfileDialog.value = false;
-      } catch (err) {
-        console.error("saveProfile error:", err);
-        // 回退策略：先尝试用 POST /v1/user/profile（后端同时接受 PUT/POST），再退到单独的过敏/病史接口
-        try {
-          const postResp = await ApiService.post("/v1/user/profile", {
-            realName: profileForm.value.realName,
-            age: profileForm.value.age,
-            drugAllergy: profileForm.value.drugAllergy,
-            lifetimeMedicalHistory: profileForm.value.lifetimeMedicalHistory,
-          });
-          console.log("post profile resp:", postResp);
-          authStore.updateUserInfo({
-            realName: profileForm.value.realName,
-            age: profileForm.value.age,
-            drugAllergy: profileForm.value.drugAllergy,
-            lifetimeMedicalHistory: profileForm.value.lifetimeMedicalHistory,
-          });
-          showProfileDialog.value = false;
-        } catch (e2) {
-          console.error("post fallback failed:", e2);
-          // 最后再尝试兼容接口（逐项更新）
-          try {
-            if (profileForm.value.drugAllergy) {
-              await ApiService.updateDrugAllergy(profileForm.value.drugAllergy);
-            }
-            if (profileForm.value.lifetimeMedicalHistory) {
-              await ApiService.appendMedicalHistory(
-                profileForm.value.lifetimeMedicalHistory,
-                "已就诊",
-              );
-            }
-            authStore.updateUserInfo({
-              realName: profileForm.value.realName,
-              age: profileForm.value.age,
-            });
-            showProfileDialog.value = false;
-          } catch (e) {
-            console.error("fallback save error:", e);
-            let msg = "保存用户信息失败";
-            if (e && e.message) msg = msg + ": " + e.message;
-            else if (e && typeof e === "string") msg = msg + ": " + e;
-            else if (e && e.error)
-              msg = msg + ": " + (e.error.message || JSON.stringify(e.error));
-            error.value = msg;
-          }
-        }
-      }
-    }
-
     function showSaveDialog(msg) {
       currentSaveMsg.value = msg;
       medicalForm.value = {
@@ -567,13 +520,15 @@ export default {
 
     return {
       userInput, fileInput, isLoading, isStreaming, error, messages, currentUser,
-      showMedicalDialog, medicalForm, showProfileDialog, profileForm,
+      showMedicalDialog, medicalForm,
+      // Session 管理
+      sessions, currentSessionId, createSession, switchSession, deleteSession,
       // Phase 7
       reportIndicators, reportDate, currentReportId,
       onReportUploaded,
       // existing
       sendMessage, sendOcrMessage, uploadFile, handleFileUpload,
-      handleLogout, openProfile, closeProfile, saveProfile,
+      handleLogout,
       showSaveDialog, confirmSave, cancelSave,
     };
   },
@@ -589,6 +544,36 @@ export default {
 
 /* Phase 7: 左右分栏布局 */
 .chat-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* Session 列表面板 */
+.session-panel {
+  width: 200px; flex-shrink: 0; display: flex; flex-direction: column;
+  background: #f5f5f5; border-right: 1px solid #e0e0e0; overflow: hidden;
+}
+.new-session-btn {
+  margin: 12px; padding: 10px; background: #667eea; color: white; border: none;
+  border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: background 0.2s;
+}
+.new-session-btn:hover { background: #764ba2; }
+.session-list { flex: 1; overflow-y: auto; padding: 0 8px; }
+.session-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; margin-bottom: 4px; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s; font-size: 14px; color: #333;
+}
+.session-item:hover { background: #e8e8e8; }
+.session-item.active { background: #667eea; color: white; }
+.session-item.active .session-delete { color: rgba(255,255,255,0.7); }
+.session-item.active .session-delete:hover { color: white; }
+.session-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-delete {
+  background: none; border: none; color: #999; cursor: pointer; font-size: 12px;
+  padding: 2px 6px; border-radius: 4px; opacity: 0; transition: opacity 0.2s;
+}
+.session-item:hover .session-delete { opacity: 1; }
+.session-delete:hover { background: rgba(0,0,0,0.1); }
+
 .side-panel {
   width: 340px; flex-shrink: 0; padding: 12px; border-right: 1px solid #eee;
   overflow-y: auto; background: #fafafa; position: relative;

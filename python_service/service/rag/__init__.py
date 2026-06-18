@@ -9,7 +9,8 @@ RAG 服务模块：检索增强生成管线
 - RAGCache: Redis 缓存
 """
 
-from .rag import RAGSystem, retrieve_medical_knowledge
+from service.rag.rag import retrieve_medical_knowledge
+
 
 __all__ = [
     "RAGSystem",
