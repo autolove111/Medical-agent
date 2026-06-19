@@ -1,15 +1,15 @@
 """
 Medical-agent FastAPI 服务入口
 
-启动方式：
+启动方式�?
     conda activate medagent
     cd Medical-agent/python_service
     python server.py
 
-访问：
-    http://localhost:8000/docs     — Swagger 文档
-    http://localhost:8000/redoc    — ReDoc 文档
-    http://localhost:8000/api/user/health — 健康检查
+访问�?
+    http://localhost:8000/docs     �?Swagger 文档
+    http://localhost:8000/redoc    �?ReDoc 文档
+    http://localhost:8000/api/user/health �?健康检�?
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-# 确保 python_service/ 在 sys.path 中（支持跨目录运行）
+# 确保 python_service/ �?sys.path 中（支持跨目录运行）
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
@@ -59,6 +59,7 @@ async def lifespan(app: FastAPI):
                  os.getenv("SERVICE_HOST", "0.0.0.0"),
                  os.getenv("SERVICE_PORT", "8000"))
     logger.info("API docs: http://localhost:%s/docs", os.getenv("SERVICE_PORT", "8000"))
+    logger.info("OCR engine: %s", os.getenv("OCR_ENGINE", "mineru_api"))
     logger.info("OCR service: %s", os.getenv("OCR_SERVICE_URL", "http://localhost:8001"))
     logger.info("AgentLoop: enabled (max 5 steps)")
     logger.info("LLM model will be loaded on first request (lazy)")
@@ -70,7 +71,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Medical-agent API",
-    description="医疗检验报告解读智能助手 — 基于自研 Harness 架构",
+    description="医疗检验报告解读智能助�?�?基于自研 Harness 架构",
     version="0.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -103,7 +104,7 @@ app.include_router(report_router)
 app.include_router(auth_router)
 
 
-# ---- 根路由 ----
+# ---- 根路�?----
 
 @app.get("/")
 async def root():
@@ -130,6 +131,6 @@ if __name__ == "__main__":
         "server:app",
         host=host,
         port=port,
-        reload=False,         # 模型在内存中，reload 会导致多次加载
+        reload=False,         # 模型在内存中，reload 会导致多次加�?
         log_level="info",
     )

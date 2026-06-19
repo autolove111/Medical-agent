@@ -1,5 +1,6 @@
-import logging
+﻿import logging
 import os
+import time
 from typing import List, Optional
 
 from langchain_community.vectorstores import FAISS
@@ -20,8 +21,135 @@ from service.rag.document_loaders import (
 from service.rag.text_cleaner import clean_documents
 
 logger = logging.getLogger(__name__)
-DEFAULT_EMBEDDING_MODEL_ID = "maidalun1020/bce-embedding-base_v1"
+DEFAULT_EMBEDDING_MODEL_ID = "qihoo360/Zhinao-ChineseModernBert-Embedding"
 
+
+# ============================================================
+# OpenAI 兼容 Embedding API 适配器
+# ============================================================
+
+class OpenAICompatibleEmbedding(Embeddings):
+    """通过 OpenAI 兼容 API（如 OpenAI / 硅基流动 / 本地 vLLM 等）获取 Embedding。
+
+    实现 LangChain Embeddings 接口，直接对接 FAISS / Chroma 等向量库。
+
+    使用方式：
+        emb = OpenAICompatibleEmbedding(
+            api_url="https://api.openai.com/v1/embeddings",
+            api_key="sk-xxx",
+            model_name="text-embedding-3-small",
+        )
+        vec = emb.embed_query("hello")
+    """
+
+    def __init__(
+        self,
+        api_url: str = "",
+        api_key: str = "",
+        model_name: str = "text-embedding-3-small",
+        timeout: int = 30,
+        dimensions: Optional[int] = None,
+        max_retries: int = 3,
+    ):
+        import requests as _requests
+
+        self._requests = _requests
+        self.api_url = (api_url or settings.RAG_EMBEDDING_API_URL).rstrip("/")
+        self.api_key = api_key or settings.RAG_EMBEDDING_API_KEY
+        self.model_name = model_name or settings.RAG_EMBEDDING_MODEL_NAME
+        self.timeout = timeout or settings.RAG_EMBEDDING_API_TIMEOUT
+        self.dimensions = dimensions
+        self.max_retries = max_retries
+
+        logger.info(
+            "OpenAICompatibleEmbedding initialized | url=%s model=%s",
+            self.api_url,
+            self.model_name,
+        )
+
+    def _call_api(self, texts: List[str]) -> List[List[float]]:
+        """调用 OpenAI 兼容 Embedding API，含重试逻辑。"""
+        if not texts:
+            return []
+
+        payload: dict = {
+            "model": self.model_name,
+            "input": texts,
+        }
+        if self.dimensions:
+            payload["dimensions"] = self.dimensions
+
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        last_error = None
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                resp = self._requests.post(
+                    self.api_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return [data["data"][i]["embedding"] for i in range(len(texts))]
+
+            except Exception as exc:
+                last_error = exc
+                logger.warning(
+                    "Embedding API call failed (attempt %d/%d): %s",
+                    attempt,
+                    self.max_retries,
+                    exc,
+                )
+                if attempt < self.max_retries:
+                    time.sleep(min(2 ** attempt, 10))
+
+        raise RuntimeError(
+            f"Embedding API call failed after {self.max_retries} attempts: {last_error}"
+        )
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return self._call_api(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        result = self._call_api([text])
+        return result[0] if result else []
+
+
+# ============================================================
+# 本地 Embedding 模型（BCE-embedding / SentenceTransformer）
+# ============================================================
+
+
+def _download_from_modelscope(model_id: str, cache_dir: str) -> str:
+    """从 ModelScope 下载模型，返回本地路径。
+
+    自动将 HuggingFace 命名空间映射到 ModelScope：
+      qihoo360/Zhinao-ChineseModernBert-Embedding → ZhipuAI/Zhinao-ChineseModernBert-Embedding
+    """
+    try:
+        from modelscope import snapshot_download
+        parts = model_id.split("/")
+        if len(parts) == 2:
+            org, repo = parts
+            mapping = {
+                "qihoo360": "ZhipuAI",
+            }
+            ms_id = f"{mapping.get(org, org)}/{repo}"
+        else:
+            ms_id = model_id
+        local = snapshot_download(ms_id, cache_dir=cache_dir)
+        logger.info("Downloaded from ModelScope: %s -> %s", ms_id, local)
+        return local
+    except ImportError:
+        logger.warning("modelscope not installed, cannot auto-download from ModelScope")
+        raise
+    except Exception as exc:
+        logger.warning("ModelScope download failed for %s: %s", model_id, exc)
+        raise
 
 def resolve_embedding_model_source() -> str:
     configured_source = os.getenv(
@@ -29,7 +157,6 @@ def resolve_embedding_model_source() -> str:
         settings.RAG_LOCAL_EMBEDDING_PATH or DEFAULT_EMBEDDING_MODEL_ID,
     )
 
-    # 相对路径基于 python_service/ 目录解析（与 .env 同目录）
     if not os.path.isabs(configured_source):
         _env_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
         configured_source = os.path.normpath(os.path.join(_env_dir, configured_source))
@@ -49,7 +176,7 @@ def resolve_embedding_model_source() -> str:
 
 
 class BCEFlagEmbedding(Embeddings):
-    """LangChain adapter around a local SentenceTransformer model."""
+    """LangChain adapter around a local SentenceTransformer model.\n    Supports BCE-embedding, Zhinao-ChineseModernBert-Embedding, etc."""
 
     def __init__(self, model_path: Optional[str] = None, use_fp16: bool = False):
         resolved_path = model_path or resolve_embedding_model_source()
@@ -129,14 +256,32 @@ class BCEFlagEmbedding(Embeddings):
         return self._encode_with_transformers([text])[0]
 
 
+# ============================================================
+# Embedding 工厂函数
+# ============================================================
+
 def create_embeddings(
     purpose: str = "default",
-) -> BCEFlagEmbedding:
+) -> Embeddings:
+    """创建 Embedding 实例，根据 RAG_USE_LOCAL_EMBEDDING 自动选择本地或 API。
+
+    - 本地模式 (RAG_USE_LOCAL_EMBEDDING=true):  加载 BCE-embedding 等本地模型
+    - API  模式 (RAG_USE_LOCAL_EMBEDDING=false): 调用 OpenAI 兼容 Embedding API
+    """
     _ = purpose
+
+    if not settings.RAG_USE_LOCAL_EMBEDDING:
+        logger.info("RAG using OpenAI-compatible Embedding API")
+        return OpenAICompatibleEmbedding()
+
     local_path = resolve_embedding_model_source()
     logger.info("RAG using local SentenceTransformer model: %s", local_path)
     return BCEFlagEmbedding(model_path=local_path, use_fp16=False)
 
+
+# ============================================================
+# 向量库构建工具
+# ============================================================
 
 def resolve_vectorstore_dir(scope_key: str = "main", base_path: Optional[str] = None) -> str:
     root = base_path or settings.VECTOR_DB_PATH

@@ -8,6 +8,7 @@
 from __future__ import annotations
 import json
 import logging
+import re
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
@@ -19,6 +20,30 @@ from app.business.report_pipeline import get_report_pipeline
 from harness.agentic_loop.analyze_ReAct_loop import analyze_ReActLoop
 
 logger = logging.getLogger(__name__)
+
+_META_PATTERN = re.compile(r"\[META\|([^\]]+)\]")
+
+
+def extract_metadata(text: str) -> tuple[str, dict]:
+    """从AI回复中提取[META|diseases:...|drugAllergies:...]结构化元数据。"""
+    metadata = {"isMedical": False, "diseases": "", "drugAllergies": ""}
+    match = _META_PATTERN.search(text)
+    if not match:
+        return text, metadata
+    parsed = {}
+    for field in match.group(1).split("|"):
+        if ":" not in field:
+            continue
+        k, v = field.split(":", 1)
+        parsed[k.strip()] = v.strip()
+    metadata["isMedical"] = parsed.get("isMedical", "").lower() in ("true", "yes", "1")
+    diseases = parsed.get("diseases", "")
+    metadata["diseases"] = "" if diseases in ("none", "", "-") else diseases
+    allergy = parsed.get("drugAllergies", "")
+    metadata["drugAllergies"] = "" if allergy in ("none", "", "-") else allergy
+    cleaned = _META_PATTERN.sub("", text).rstrip()
+    return cleaned, metadata
+
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
