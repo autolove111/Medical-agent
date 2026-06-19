@@ -8,12 +8,9 @@ knowledge 模块：医学知识数据层
 """
 
 from .reference_ranges import REFERENCE_RANGES, get_reference_range, format_reference_text
-from .medical_knowledge import KnowledgeBase, create_knowledge_base
 
 __all__ = [
     "REFERENCE_RANGES",
     "get_reference_range",
-    "format_reference_text",
-    "KnowledgeBase",
-    "create_knowledge_base",
+    "format_reference_text"
 ]

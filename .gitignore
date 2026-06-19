@@ -40,9 +40,6 @@ hf_cache/
 __pycache__/
 *.pyc
 
-# Database
-data/
-reports/
 
 # Temp files
 docx_content.txt

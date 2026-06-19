@@ -18,6 +18,8 @@ from fastapi.responses import StreamingResponse
 from api.routes.report import get_report
 from app.business.report_pipeline import get_report_pipeline
 from harness.agentic_loop.analyze_ReAct_loop import analyze_ReActLoop
+from harness.memory.long_term.memory_snapshot import MemorySnapshotMemory
+from harness.memory.persistence.repositories.memory_snapshot_repo import MemorySnapshotRepo
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,24 @@ def _build_report_context(report_id: str) -> str:
     if report is None:
         return f"【注意：报告 {report_id} 未找到，请重新上传】"
     return report.to_context_text()
+
+
+@router.get("/chat/history")
+async def get_chat_history(
+    user_id: str = Query(default="default"),
+    session_id: str = Query(...),
+):
+    """从快照恢复最新一轮对话历史"""
+    snapshot = MemorySnapshotMemory(MemorySnapshotRepo())
+    data = snapshot.load(user_id, session_id)
+    if not data:
+        return {"code": 200, "data": {"messages": []}}
+
+    messages = [
+        m for m in data["messages"]
+        if m.get("role") in ("user", "assistant") and m.get("content")
+    ]
+    return {"code": 200, "data": {"messages": messages}}
 
 
 @router.get("/chat/react-stream")

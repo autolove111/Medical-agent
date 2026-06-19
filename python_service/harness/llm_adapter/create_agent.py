@@ -99,24 +99,19 @@ class LabAgent:
     # ----------------------------------------------------------
     def get_summary(self) -> list[dict]:
         """获取会话总结文本，如果内存没有则从快照恢复，若快照也没有则返回空字符串"""
-        return self.memory.get_summary_text()
+        summary = self.memory.get_summary_text()
+        if not summary:
+            self.memory.load_snapshot()
+            summary = self.memory.get_summary_text()
+        return summary
 
     # ----------------------------------------------------------
     # 获取system prompt能力
     # ----------------------------------------------------------
     def get_system_prompt(self) -> list[dict]:
         """获取系统提示词，返回 FC 格式的 system message"""
-        return self.system_prompt.get(self.def_prompt, self.format_prompt, self.get_profile(), self.get_summary())
+        return self.system_prompt.get(self.def_prompt, self.format_prompt, self.get_summary())
 
-    # ----------------------------------------------------------
-    # 获取患者画像文本能力  
-    # ----------------------------------------------------------
-    def get_profile(self) -> dict:
-        """获取患者画像文本"""
-        profile = self.memory.get_profile_text()
-        if not profile:
-            return {}
-        return profile
 
     # ----------------------------------------------------------
     # Prompt 组装system_message+shoort memory能力，返回message列表

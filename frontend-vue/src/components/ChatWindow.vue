@@ -177,9 +177,11 @@ export default {
 
     // Session 管理
     function generateSessionId() {
-      return "sess_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      const id = "sess_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      localStorage.setItem("session_id", id);
+      return id;
     }
-    const currentSessionId = ref(generateSessionId());
+    const currentSessionId = ref(localStorage.getItem("session_id") || generateSessionId());
     const sessions = ref([{ id: currentSessionId.value, label: "对话 1", createdAt: Date.now() }]);
     let sessionCounter = 1;
 
@@ -193,12 +195,28 @@ export default {
       currentReportId.value = null;
     }
 
-    function switchSession(sessionId) {
+    async function switchSession(sessionId) {
       if (sessionId === currentSessionId.value) return;
       currentSessionId.value = sessionId;
+      localStorage.setItem("session_id", sessionId);
       chatStore.clearMessages();
       reportIndicators.value = [];
       currentReportId.value = null;
+
+      // 加载目标会话的历史
+      try {
+        const res = await ApiService.get("/chat/history", {
+          params: { user_id: "default", session_id: sessionId },
+        });
+        const history = res.data?.data?.messages;
+        if (history && history.length > 0) {
+          for (const msg of history) {
+            chatStore.addMessage({ role: msg.role, content: msg.content });
+          }
+        }
+      } catch (e) {
+        console.warn("加载对话历史失败:", e);
+      }
     }
 
     function deleteSession(sessionId) {
@@ -229,14 +247,9 @@ export default {
       }
     };
 
-    // 页面关闭/刷新时发送登出请求，清空会话历史
+    // 页面关闭/刷新时只清理本地状态，不清后端会话（保留快照供下次加载）
     function handlePageClose() {
-      const token = localStorage.getItem("token");
-      if (token) {
-        navigator.sendBeacon(
-          "/v1/auth/logout?token=" + encodeURIComponent(token),
-        );
-      }
+      // 不再发送 logout beacon，让后端会话和快照保持不变
     }
 
     onMounted(async () => {
@@ -247,6 +260,21 @@ export default {
       if (!authStore.isLoggedIn) {
         router.push("/login");
         return;
+      }
+
+      // 从后端快照恢复对话历史
+      try {
+        const res = await ApiService.get("/chat/history", {
+          params: { user_id: "default", session_id: currentSessionId.value },
+        });
+        const history = res.data?.data?.messages;
+        if (history && history.length > 0) {
+          for (const msg of history) {
+            chatStore.addMessage({ role: msg.role, content: msg.content });
+          }
+        }
+      } catch (e) {
+        console.warn("加载对话历史失败:", e);
       }
 
       window.addEventListener("beforeunload", handlePageClose);

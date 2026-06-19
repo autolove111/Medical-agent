@@ -72,56 +72,6 @@ class Chunk:
     content: str
 
 
-# ============================================================
-# 工具调用解析
-# ============================================================
-
-def _parse_tool_calls(text: str) -> list[ToolCall] | None:
-    """
-    从模型输出中解析工具调用。
-
-    支持格式：
-    - <tool_call>{"name": "...", "args": {...}}</tool_call>
-    - [tool_call]{"name": "...", "arguments": ...}
-    - {"name": "...", "arguments": ...}（裸 JSON）
-    """
-    tool_calls = []
-
-    # 格式 1: <tool_call>...</tool_call>
-    xml_matches = re.findall(r'<tool_call>\s*(.+?)\s*</tool_call>', text, re.DOTALL)
-    for match in xml_matches:
-        try:
-            data = json.loads(match)
-            name = data.get("name", "")
-            args = data.get("args", data.get("arguments", {}))
-            if name:
-                tool_calls.append(ToolCall(
-                    id=f"call_{uuid.uuid4().hex[:8]}",
-                    function=Function(name=name, arguments=json.dumps(args, ensure_ascii=False)),
-                ))
-        except json.JSONDecodeError:
-            continue
-
-    if tool_calls:
-        return tool_calls
-
-    # 格式 2: {"name": "...", "arguments": ...}（裸 JSON）
-    json_match = re.search(r'\{[^{}]*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{.*?\}\s*\}', text, re.DOTALL)
-    if json_match:
-        try:
-            data = json.loads(json_match.group(0))
-            name = data.get("name", "")
-            args = data.get("arguments", {})
-            if name:
-                return [ToolCall(
-                    id=f"call_{uuid.uuid4().hex[:8]}",
-                    function=Function(name=name, arguments=json.dumps(args, ensure_ascii=False)),
-                )]
-        except json.JSONDecodeError:
-            pass
-
-    return None
-
 
 # ============================================================
 # ChatModel

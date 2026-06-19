@@ -69,15 +69,15 @@ async def register(req: RegisterRequest):
     if req.password != req.confirmPassword:
         raise HTTPException(status_code=400, detail="两次密码不一致")
 
-    repo = ProfileRepo()
-    if repo.get(req.idNumber) is not None:
-        raise HTTPException(status_code=400, detail="该身份证号已注册")
-
-    repo.save(req.idNumber, {"name": req.realName, "age": req.age})
-
-    # 密码持久化到 DB
     db = get_session()
     try:
+        repo = ProfileRepo(db)
+        if repo.get(req.idNumber) is not None:
+            raise HTTPException(status_code=400, detail="该身份证号已注册")
+
+        # 创建画像 + 设置密码在同一个 session，避免跨 session 可见性问题
+        repo.save(req.idNumber, {"name": req.realName, "age": req.age})
+
         profile = db.query(PatientProfile).filter(PatientProfile.patient_id == req.idNumber).first()
         if profile:
             profile.password_hash = _hash_password(req.password)
@@ -97,12 +97,12 @@ async def register(req: RegisterRequest):
 
 @router.post("/login")
 async def login(req: LoginRequest):
-    repo = ProfileRepo()
-    if repo.get(req.idNumber) is None:
-        raise HTTPException(status_code=401, detail="身份证号或密码错误")
-
     db = get_session()
     try:
+        repo = ProfileRepo(db)
+        if repo.get(req.idNumber) is None:
+            raise HTTPException(status_code=401, detail="身份证号或密码错误")
+
         profile = db.query(PatientProfile).filter(PatientProfile.patient_id == req.idNumber).first()
         stored_hash = profile.password_hash if profile else ""
     finally:

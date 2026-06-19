@@ -78,25 +78,6 @@ class SystemPromptBuilder:
         limit_def_prompt = truncate_to_token_limit(def_prompt, LAYER_SYSTEM_TOKENS)
         return {"role": "system", "content": limit_def_prompt}
 
-    def apply_profile(self, profile: dict = None) -> dict:
-        """覆盖患者画像区域"""
-        if not profile:
-            return {"role": "system", "content": ""}
-        parts = [
-            f"【患者信息】姓名: {profile.get('name', '')} | "
-            f"年龄: {profile.get('age', '')} | "
-            f"性别: {profile.get('gender', '')}"
-        ]
-        if profile.get("allergies"):
-            parts.append(f"过敏史: {', '.join(profile['allergies'])}")
-        if profile.get("chronic_diseases"):
-            parts.append(f"慢性病: {', '.join(profile['chronic_diseases'])}")
-        if profile.get("medications"):
-            parts.append(f"当前用药: {', '.join(profile['medications'])}")
-        text = "\n".join(parts)
-        limit_text = truncate_to_token_limit(text, LAYER_PROFILE_TOKENS)
-        return {"role": "system", "content": limit_text}
-
     def apply_format(self, format_prompt: str = "") -> dict:
         """覆盖格式/CoT 指令区域"""
         limit_format_prompt = truncate_to_token_limit(format_prompt, LAYER_FORMAT_TOKENS)
@@ -111,7 +92,7 @@ class SystemPromptBuilder:
     # 获取最终 prompt
     # ----------------------------------------------------------
 
-    def get(self, def_prompt: str=None, format_prompt: str=None, profile: dict = None, summary: list[dict] = None) -> list[dict]:
+    def get(self, def_prompt: str=None, format_prompt: str=None,  summary: list[dict] = None) -> list[dict]:
         """
         按顺序返回多个独立的 system message。
 
@@ -125,8 +106,6 @@ class SystemPromptBuilder:
         messages = []
         if def_prompt:  
             messages.append(self.apply_def(def_prompt))
-        if profile:
-            messages.append(self.apply_profile(profile))
         if format_prompt:
             messages.append(self.apply_format(format_prompt))
         if summary:

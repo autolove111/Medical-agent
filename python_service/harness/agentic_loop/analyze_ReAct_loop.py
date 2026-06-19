@@ -121,9 +121,13 @@ class analyze_ReActLoop:
 
             if emit: emit({"type": "react_start", "query": str(user_query)})
 
+            # 先从快照恢复历史对话，再写入新消息
+            self.agent.get_short_memory_text()
+
             for query in user_query:
                 self.agent.write_user_message_to_memory(query)
-            while self.step_count < self.max_steps:
+            try:
+              while self.step_count < self.max_steps:
                 self.step_count += 1
                 if emit: emit({"type": "step_start", "step": self.step_count})
                 print(f"\n🔄 ReAct 循环 - 第 {self.step_count} 步")
@@ -207,8 +211,14 @@ class analyze_ReActLoop:
                         if emit: emit({"type": "react_end"})
                         return "无法生成有效回答"
             
-            if emit: emit({"type": "react_end"})
-            return "任务未完成：超过最大循环次数"
+
+            finally:
+                # ReAct 循环结束，保存短期记忆快照
+                try:
+                    self.agent.memory.save_snapshot()
+                    print("💾 记忆快照已保存")
+                except Exception as e:
+                    print(f"⚠️ 快照保存失败: {e}")
 
     # ============================================================
     # 钩子函数调用（内部使用）
