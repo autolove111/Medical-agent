@@ -29,17 +29,34 @@ class MemorySnapshotRepo:
 
     def save(self, patient_id: str, session_id: str,
              messages: list[dict], summary: list[dict], message_len: int) -> None:
-        """存入一条快照"""
+        """存入快照（同一 session 只保留一条，更新而非插入）"""
         db = self._get_db()
         try:
-            row = MemorySnapshot(
-                patient_id=patient_id,
-                session_id=session_id,
-                message_len=message_len,
-            )
-            row.set_messages(messages)
-            row.set_summary(summary)
-            db.add(row)
+            row = db.query(MemorySnapshot).filter(
+                MemorySnapshot.patient_id == patient_id,
+                MemorySnapshot.session_id == session_id,
+            ).first()
+            if row:
+                row.message_len = message_len
+                row.set_messages(messages)
+                row.set_summary(summary)
+            else:
+                row = MemorySnapshot(
+                    patient_id=patient_id,
+                    session_id=session_id,
+                    message_len=message_len,
+                )
+                row.set_messages(messages)
+                row.set_summary(summary)
+                db.add(row)
+            db.commit()
+
+            # 清理同 session 的历史冗余行（保留当前这条）
+            db.query(MemorySnapshot).filter(
+                MemorySnapshot.patient_id == patient_id,
+                MemorySnapshot.session_id == session_id,
+                MemorySnapshot.id != row.id,
+            ).delete(synchronize_session=False)
             db.commit()
         finally:
             self._close(db)

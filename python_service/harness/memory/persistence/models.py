@@ -83,6 +83,9 @@ class EventsData(Base):
     content = Column(Text, default="", comment="内容文本")
     raw_data = Column(Text, default="{}", comment="原始数据 JSON（化验报告指标等）")
     weight = Column(Float, default=1.0, comment="权重，召回时递增，用于遗忘机制")
+    medical = Column(Float, default=0.0, comment="医疗信息价值评分")
+    experience = Column(Float, default=0.0, comment="经验总结价值评分")
+    profile = Column(Float, default=0.0, comment="画像更新价值评分")
     created_at = Column(DateTime, default=_utcnow, index=True)
 
     def get_raw_data(self) -> dict:

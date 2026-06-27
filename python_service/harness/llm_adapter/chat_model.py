@@ -167,3 +167,25 @@ class ChatModel:
         return self.client.chat.completions.create(
             model=self.model, messages=messages, stream=True,
         )
+    
+class JudgeModel:
+    """用于异步判断语句是否入库"""
+    def __init__(self):
+        from openai import OpenAI
+        self.client = OpenAI(
+            api_key="tp-cvyhrlmkjyiy9sp1ic7up8qtgoyyjy01qns18wrt0vm3rvnq",
+            base_url="https://token-plan-cn.xiaomimimo.com/v1",
+        )
+        self.model = "mimo-v2.5"
+
+    def invoke(self, messages: list[dict]):
+        kwargs = {"model": self.model, "messages": messages}
+        for msg in kwargs["messages"]:
+            if isinstance(msg, dict) and msg.get("role") == "tool":
+                msg["role"] = "user"
+        return self.client.chat.completions.create(**kwargs)
+
+  
+    
+
+

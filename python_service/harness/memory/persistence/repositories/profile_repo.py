@@ -61,15 +61,28 @@ class ProfileRepo:
             if row is None:
                 row = PatientProfile(patient_id=patient_id)
                 db.add(row)
+
+            # 标量字段：直接覆盖
             for key in ["name", "age", "gender", "blood_type", "height", "weight"]:
                 if key in data:
                     setattr(row, key, data[key])
+
+            # 列表字段：合并去重（不覆盖）
             for key in ["allergies", "chronic_diseases", "medications"]:
-                if key in data:
-                    setattr(row, key, json.dumps(data[key], ensure_ascii=False))
+                if key in data and data[key]:
+                    existing = json.loads(getattr(row, key) or "[]")
+                    new_items = data[key] if isinstance(data[key], list) else [data[key]]
+                    merged = list(set(existing + new_items))
+                    setattr(row, key, json.dumps(merged, ensure_ascii=False))
+
+            # 字典字段：合并键值（不覆盖）
             for key in ["family_history", "lifestyle"]:
-                if key in data:
-                    setattr(row, key, json.dumps(data[key], ensure_ascii=False))
+                if key in data and data[key]:
+                    existing = json.loads(getattr(row, key) or "{}")
+                    if isinstance(data[key], dict):
+                        existing.update(data[key])
+                    setattr(row, key, json.dumps(existing, ensure_ascii=False))
+
             db.commit()
         finally:
             self._close(db)

@@ -45,15 +45,21 @@ class MemorySystem:
 
     # ========== 写入 ==========
 
-    def on_user_message(self, content: str) -> None:
-        """将用户消息写入对话记录和短期记忆"""
-        self.events.append("user", content)
+    def on_user_message(self, content: str, scores: dict = None) -> None:
+        """将用户消息写入对话记录和短期记忆，可选写入评分"""
+        print(f"🔴 on_user_message BEFORE: stm_count={len(self._stm.messages)}, content={content[:30]}")
+        self.events.append("user", content, scores=scores)
         self._stm.add_user_message(content)
+        print(f"🟢 on_user_message AFTER: stm_count={len(self._stm.messages)}, last={self._stm.messages[-1] if self._stm.messages else '空'}")
 
-    def on_assistant_message(self, content: str) -> None:
-        """将助手回复写入对话记录和短期记忆"""
-        self.events.append("assistant", content)
+    def on_assistant_message(self, content: str, scores: dict = None) -> None:
+        """将助手回复写入对话记录和短期记忆，可选写入评分"""
+        self.events.append("assistant", content, scores=scores)
         self._stm.add_assistant_message(content)
+
+    def update_profile(self, updates: dict) -> None:
+        """更新患者画像"""
+        self.profile.update(updates)
 
     def on_assistant_tool_calls(self, content: str, tool_calls: list[dict]) -> None:
         """将助手的工具调用请求写入短期记忆"""
@@ -89,6 +95,7 @@ class MemorySystem:
     def save_snapshot(self) -> None:
         """将当前短期记忆存入快照"""
         if self._stm:
+            print(f"💾 save_snapshot: stm_count={len(self._stm.messages)}")
             self.snapshot.save(
                 patient_id=self.patient_id,
                 session_id=self.session_id,
@@ -104,15 +111,16 @@ class MemorySystem:
             self._stm.messages = data["messages"]
             self._stm.summary = data["summary"]
             self._stm.message_len = data["message_len"]
+            print(f"📂 load_snapshot: loaded {len(self._stm.messages)} messages")
             return True
+        print(f"📂 load_snapshot: no snapshot found")
         return False
 
     # ========== 结束 ==========
 
     def end_session(self) -> None:
-        """结束会话：保存快照 + 更新画像"""
+        """结束会话：保存快照"""
         self.save_snapshot()
-        self._stm = None
 
 
 __all__ = ["MemorySystem"]

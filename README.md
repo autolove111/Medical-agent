@@ -251,7 +251,7 @@ VECTOR_DB_PATH=./harness/memory/knowledge/data/vector_db
 
 ```powershell
 # 终端 1: Python 后端
-conda activate medagent
+conda activate medlabagent
 cd Medical-agent/python_service
 python server.py
 # → http://localhost:8000 (Swagger: /docs)
@@ -263,8 +263,7 @@ python paddle_server.py
 # → http://localhost:8001 (首次启动自动下载 PP-OCRv4 模型 ~80MB)
 
 # 终端 3: 前端
-cd Medical-agent/frontend-vue
-npm install
+cd frontend-vue
 npm run dev
 # → http://localhost:8888
 ```

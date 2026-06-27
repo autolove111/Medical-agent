@@ -206,7 +206,7 @@ export default {
       // 加载目标会话的历史
       try {
         const res = await ApiService.get("/chat/history", {
-          params: { user_id: "default", session_id: sessionId },
+          params: { user_id: authStore.user?.idNumber || "default", session_id: sessionId },
         });
         const history = res.data?.data?.messages;
         if (history && history.length > 0) {
@@ -265,7 +265,7 @@ export default {
       // 从后端快照恢复对话历史
       try {
         const res = await ApiService.get("/chat/history", {
-          params: { user_id: "default", session_id: currentSessionId.value },
+          params: { user_id: authStore.user?.idNumber || "default", session_id: currentSessionId.value },
         });
         const history = res.data?.data?.messages;
         if (history && history.length > 0) {
@@ -315,7 +315,7 @@ export default {
 
       try {
         await ApiService.streamReAct(
-          "default", userMessage, currentReportId.value, currentSessionId.value,
+          authStore.user?.idNumber || "default", userMessage, currentReportId.value, currentSessionId.value,
           (event) => {
             isStreaming.value = true
             const last = chatStore.messages[chatStore.messages.length - 1]

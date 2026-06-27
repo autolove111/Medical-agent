@@ -121,11 +121,11 @@ class analyze_ReActLoop:
 
             if emit: emit({"type": "react_start", "query": str(user_query)})
 
-            # 先从快照恢复历史对话，再写入新消息
-            self.agent.get_short_memory_text()
 
             for query in user_query:
                 self.agent.write_user_message_to_memory(query)
+            print(f"📝 写入用户消息后消息数: {len(self.agent.memory._stm.messages)}")
+            print(f"📝 最后一条消息: {self.agent.memory._stm.messages[-1] if self.agent.memory._stm.messages else '空'}")
             try:
               while self.step_count < self.max_steps:
                 self.step_count += 1
@@ -135,6 +135,8 @@ class analyze_ReActLoop:
                 
                 # 调用模型（支持 tool_calls）
                 message_prompt=self.agent.get_message_prompt()
+                print(f"📨 发给模型的消息数: {len(message_prompt)}")
+                print(f"📨 最后一条: {message_prompt[-1] if message_prompt else '空'}")
                 print(f"messages: {message_prompt}")
 
                 response = self.agent.chat(message_prompt=message_prompt)
@@ -213,9 +215,8 @@ class analyze_ReActLoop:
             
 
             finally:
-                # ReAct 循环结束，保存短期记忆快照
                 try:
-                    self.agent.memory.save_snapshot()
+                    self.agent.end_session()
                     print("💾 记忆快照已保存")
                 except Exception as e:
                     print(f"⚠️ 快照保存失败: {e}")

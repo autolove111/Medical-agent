@@ -9,7 +9,7 @@
 from __future__ import annotations
 import logging
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
@@ -34,13 +34,9 @@ class EventsRecordRepo:
 
     # ========== 写入 ==========
 
-    def save_message(self, patient_id: str,
-                     role: str, content: str,
-                     metrics_involved: Optional[list[str]] = None) -> int:
-        """
-        保存一条消息，自动递增 turn_id
-        返回保存的 turn_id
-        """
+    def save_message(self, patient_id: str, role: str, content: str,
+                     scores: dict = None, metrics_involved: Optional[list[str]] = None) -> int:
+        """保存一条消息，可选写入评分，返回 turn_id"""
         db = self._get_db()
         try:
             last_turn = db.query(
@@ -49,7 +45,7 @@ class EventsRecordRepo:
                 EventsData.patient_id == patient_id,
                 EventsData.event_type == "message"
             ).scalar()
-            
+
             next_turn = last_turn + 1
 
             row = EventsData(
@@ -58,16 +54,24 @@ class EventsRecordRepo:
                 role=role,
                 turn_id=next_turn,
                 content=content,
-                weight=1.0,
             )
-            
+
+            # 写入评分
+            if scores:
+                row.medical = scores.get("medical", 0.0)
+                row.experience = scores.get("experience", 0.0)
+                row.profile = scores.get("profile", 0.0)
+                row.weight = max([row.medical, row.experience, row.profile])
+            else:
+                row.weight = 1.0
+
             if metrics_involved:
-                row.set_metadata({"metrics_involved": metrics_involved})
-                
+                row.set_raw_data({"metrics_involved": metrics_involved})
+
             db.add(row)
             db.commit()
             return next_turn
-            
+
         finally:
             self._close(db)
 

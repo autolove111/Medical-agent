@@ -80,8 +80,10 @@
 <script setup>
 import { ref } from "vue"
 import ApiService from "../services/ApiService"
+import { useAuthStore } from "../stores/authStore"
 
 const emit = defineEmits(["uploaded"])
+const authStore = useAuthStore()
 
 const showDialog = ref(false)
 const file = ref(null)
@@ -128,7 +130,7 @@ async function doUpload() {
   uploadError.value = null
   try {
     const result = await ApiService.uploadLabReport(
-      file.value, "default", reportDate.value || null, age.value, gender.value
+      file.value, authStore.user?.idNumber || "default", reportDate.value || null, age.value, gender.value
     )
     uploadResult.value = result
     emit("uploaded", result)

@@ -7,14 +7,14 @@ Agent 绑定：记忆系统 + 工具注册表。
 chat() 只做单次推理，工具调用循环由 loop 模块处理。
 """
 
+import json
 import logging
 from typing import Iterable
 
-from harness.llm_adapter.chat_model import ChatModel, Chunk
+from harness.llm_adapter.chat_model import ChatModel, Chunk, JudgeModel, ChatResponse
 from harness.memory import MemorySystem
 from harness.tool import get_registry
 from harness.prompt import SystemPromptBuilder
-from harness.llm_adapter.chat_model import ChatModel, ChatResponse, Chunk
 
 
 logger = logging.getLogger(__name__)
@@ -57,23 +57,155 @@ class LabAgent:
     ):
 
         self.memory = MemorySystem(user_id, session_id)
+        self.memory.load_snapshot()  # 创建时加载快照，后续直接用
         self.chat_model = ChatModel()
         self.system_prompt = SystemPromptBuilder()
         self.tool_registry = get_registry()
         self.def_prompt = def_prompt
         self.format_prompt = format_prompt
+        self.judge_model = JudgeModel()
 
+        # 注册到监控面板
+        try:
+            from Debugging.short_memory_watching import register_memory
+            register_memory(user_id, session_id, self.memory)
+        except Exception:
+            pass  # 监控服务未启动时忽略
 
+    
     # ----------------------------------------------------------
     # 写入记忆能力
     # ----------------------------------------------------------
+    def memory_judge(self, content: str) -> str:
+        """用 7B 模型做三维打分 + 画像提取"""
+        prompt = [
+            {"role": "system", "content": (
+                "对用户消息完成两个任务，严格按JSON格式输出：\n\n"
+                "## 任务1：打分（0.0-1.0）\n"
+                "- medical：医疗信息价值（指标/症状/诊断/用药）\n"
+                "- experience：经验总结价值（效果反馈/行为改变）\n"
+                "- profile：画像更新价值（习惯/家族史/关注点）\n\n"
+                "## 任务2：画像提取\n"
+                "如果消息包含以下字段的信息就填写，没有就留空：\n"
+                "allergies, chronic_diseases, medications, family_history, lifestyle\n\n"
+                "## 输出格式（每行一个字段，没有就留空）\n"
+                "medical: 分数\n"
+                "experience: 分数\n"
+                "profile: 分数\n"
+                "allergies: 值1,值2\n"
+                "chronic_diseases: 值1,值2\n"
+                "medications: 值1,值2\n"
+                "family_history: 关系:疾病,关系:疾病\n"
+                "lifestyle: 项目:内容,项目:内容\n\n"
+                "## 示例\n"
+                "输入：我爸有高血压，我每天熬夜到两点\n"
+                "输出：\n"
+                "medical: 0.1\n"
+                "experience: 0.0\n"
+                "profile: 0.9\n"
+                "allergies: \n"
+                "chronic_diseases: \n"
+                "medications: \n"
+                "family_history: 父亲:高血压\n"
+                "lifestyle: 作息:熬夜到两点"
+            )},
+            {"role": "user", "content": content}
+        ]
+
+        try:
+            response = self.judge_model.invoke(prompt)
+            raw = response.choices[0].message.content
+
+            # 解析填表格式
+            scores = {"medical": 0.0, "experience": 0.0, "profile": 0.0}
+            profile_data = {}
+
+            for line in raw.strip().splitlines():
+                if ":" not in line:
+                    continue
+                key, _, value = line.partition(":")
+                key = key.strip()
+                value = value.strip()
+
+                if key in scores:
+                    try:
+                        scores[key] = round(float(value), 2)
+                    except ValueError:
+                        pass
+                elif key in ("allergies", "chronic_diseases", "medications"):
+                    if value:
+                        profile_data[key] = [v.strip() for v in value.split(",") if v.strip()]
+                elif key in ("family_history", "lifestyle"):
+                    if value:
+                        pairs = {}
+                        for item in value.split(","):
+                            if ":" in item:
+                                k, _, v = item.partition(":")
+                                pairs[k.strip()] = v.strip()
+                        if pairs:
+                            profile_data[key] = pairs
+                elif key in ("name", "gender", "blood_type") and value:
+                    profile_data[key] = value
+                elif key in ("age", "height", "weight") and value:
+                    try:
+                        profile_data[key] = float(value) if "." in value else int(value)
+                    except ValueError:
+                        pass
+
+            result = {
+                "content": content,
+                "medical": scores["medical"],
+                "experience": scores["experience"],
+                "profile": scores["profile"],
+                "profile_data": profile_data,
+            }
+            return json.dumps(result, ensure_ascii=False)
+
+        except Exception as e:
+            logger.warning("memory_judge failed: %s", e)
+
+        return json.dumps({
+            "content": content, "medical": 0.0, "experience": 0.0,
+            "profile": 0.0, "profile_data": {}
+        }, ensure_ascii=False)
+
     def write_user_message_to_memory(self, user_input: str) -> None:
-        """将用户消息写入记忆"""
-        self.memory.on_user_message(user_input)
+        """将用户消息写入记忆、打分、提取画像"""
+        # 1. 打分 + 提取
+        result = self.memory_judge(user_input)
+        data = json.loads(result)
+
+        print(f"🧠 memory_judge: medical={data['medical']} experience={data['experience']} profile={data['profile']}")
+        print(f"🧠 profile_data: {data.get('profile_data', {})}")
+
+        # 2. 写入对话 + 权重
+        self.memory.on_user_message(data["content"], {
+            "medical": data["medical"],
+            "experience": data["experience"],
+            "profile": data["profile"],
+        })
+
+        # 3. 更新画像
+        if data["profile"] > 0.3 and data.get("profile_data"):
+            print(f"🧑 profile.update: {data['profile_data']}")
+            self.memory.profile.update(data["profile_data"])
 
     def write_assistant_message_to_memory(self, content: str) -> None:
-        """将助手回复写入记忆并保存快照"""
-        self.memory.on_assistant_message(content)
+        """将助手回复写入记忆、打分、提取画像"""
+        # 1. 打分 + 提取
+        result = self.memory_judge(content)
+        data = json.loads(result)
+
+        # 2. 写入对话 + 权重
+        self.memory.on_assistant_message(data["content"], {
+            "medical": data["medical"],
+            "experience": data["experience"],
+            "profile": data["profile"],
+        })
+
+        # 3. 更新画像
+        if data["profile"] > 0.3 and data.get("profile_data"):
+            self.memory.profile.update(data["profile_data"])
 
     def write_tool_calls_to_memory(self, content: str, tool_calls: list[dict]) -> None:
         """将工具调用请求写入记忆"""
@@ -86,24 +218,12 @@ class LabAgent:
     # 获取短期记忆文本能力
     # ----------------------------------------------------------    
     def get_short_memory_text(self) -> list[dict]:
-        """获取短期记忆文本，如果内存没有则从快照恢复，若快照也没有则返回空字符串"""
-        short_memory = self.memory.get_short_memory_text()
-        if not short_memory:
-            self.memory.load_snapshot()
-            short_memory = self.memory.get_short_memory_text()
-        return short_memory
-    
+        """获取短期记忆消息列表"""
+        return self.memory.get_short_memory_text()
 
-    # ----------------------------------------------------------
-    # 获取summary文本能力
-    # ----------------------------------------------------------
     def get_summary(self) -> list[dict]:
-        """获取会话总结文本，如果内存没有则从快照恢复，若快照也没有则返回空字符串"""
-        summary = self.memory.get_summary_text()
-        if not summary:
-            self.memory.load_snapshot()
-            summary = self.memory.get_summary_text()
-        return summary
+        """获取会话摘要列表"""
+        return self.memory.get_summary_text()
 
     # ----------------------------------------------------------
     # 获取system prompt能力

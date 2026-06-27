@@ -22,15 +22,16 @@ class EventsRecordMemory:
     def turn_id(self) -> int:
         return self._turn_id
 
-    def append(self, role: str, content: str, metrics_involved: list[str] = None) -> int:
-        """追加一条消息，返回当前轮次"""
+    def append(self, role: str, content: str, scores: dict = None, metrics_involved: list[str] = None) -> int:
+        """追加一条消息，可选写入评分，返回当前轮次"""
         if role == "user":
             self._turn_id += 1
-        
+
         self._repo.save_message(
             patient_id=self.patient_id,
             role=role,
             content=content,
+            scores=scores,
             metrics_involved=metrics_involved,
         )
         return self._turn_id
@@ -49,6 +50,24 @@ class EventsRecordMemory:
             patient_id=self.patient_id,
             metrics=metrics,
         )
+
+    def update_scores(self, scores: list[dict]) -> None:
+        """将多维评分回写到最近的消息记录。
+
+        Args:
+            scores: [{"medical": 0.9, "experience": 0.2, "profile": 0.1}, ...]
+        """
+        if not scores:
+            return
+        for score_item in scores:
+            self._repo.update_message_scores(
+                patient_id=self.patient_id,
+                scores={
+                    "medical": score_item.get("medical", 0.0),
+                    "experience": score_item.get("experience", 0.0),
+                    "profile": score_item.get("profile", 0.0),
+                },
+            )
 
     @property
     def current_turn(self) -> int:

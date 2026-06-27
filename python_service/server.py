@@ -54,11 +54,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Database init skipped: %s", e)
 
+    # 启动短期记忆监控服务
+    try:
+        from Debugging.short_memory_watching import start_monitor_server
+        start_monitor_server(port=8002)
+        logger.info("Memory monitor: http://localhost:8002")
+    except Exception as e:
+        logger.warning("Memory monitor start skipped: %s", e)
+
     logger.info("=" * 50)
     logger.info("Medical-agent API starting on http://%s:%s",
                  os.getenv("SERVICE_HOST", "0.0.0.0"),
                  os.getenv("SERVICE_PORT", "8000"))
     logger.info("API docs: http://localhost:%s/docs", os.getenv("SERVICE_PORT", "8000"))
+    logger.info("Memory monitor: http://localhost:8002")
     logger.info("OCR engine: %s", os.getenv("OCR_ENGINE", "mineru_api"))
     logger.info("OCR service: %s", os.getenv("OCR_SERVICE_URL", "http://localhost:8001"))
     logger.info("AgentLoop: enabled (max 5 steps)")
