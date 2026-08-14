@@ -99,75 +99,8 @@ Medical-agent 是一个面向医疗检验场景的智能对话系统，能够解
 ## 项目结构
 
 ```
-Medical-agent/
-├── python_service/                       # 核心 Python AI 服务
-│   ├── server.py                         # FastAPI 应用入口 (Phase 1)
-│   ├── core/
-│   │   └── config.py                     # Pydantic 全局配置
-│   ├── api/                              # API 路由层 (Phase 1-4)
-│   │   ├── models.py                     # Pydantic 请求/响应模型
-│   │   ├── dependencies.py               # AgentPool 会话池 + 工具注册
-│   │   └── routes/
-│   │       ├── auth.py                   # 注册/登录/Token 验证 (兼容旧前端)
-│   │       ├── chat.py                   # 同步+SSE 流式对话 (Phase 1-3)
-│   │       ├── report.py                 # 报告上传+OCR+管线 (Phase 2)
-│   │       └── user.py                   # 用户画像 CRUD (Phase 4)
-│   ├── app/                              # 业务逻辑层 (Phase 2-6)
-│   │   ├── business/
-│   │   │   ├── lab_report.py             # LabReport/LabIndicator 数据模型
-│   │   │   ├── indicator_classifier.py   # 40+ 参考范围分类器 (年龄/性别分层)
-│   │   │   ├── correlation_engine.py     # 15 组多指标联动规则引擎
-│   │   │   ├── report_pipeline.py        # OCR→结构化→分类→联动 完整管线
-│   │   │   ├── interpretation_engine.py  # 6 段式解读 Prompt 组装
-│   │   │   ├── source_tracker.py         # 知识库来源引用追踪
-│   │   │   └── dietary_advisor.py        # 10+ 类指标饮食运动建议
-│   │   ├── safety/
-│   │   │   └── output_guard.py           # OutputGuard 安全红线 (Phase 6)
-│   │   └── persistence/                  # 持久化层 (Phase 4)
-│   │       ├── database.py               # SQLite 引擎 + 会话工厂
-│   │       ├── models.py                 # User/Report/Chat ORM 模型
-│   │       └── repositories/
-│   │           ├── user_repo.py          # 用户 CRUD
-│   │           ├── report_repo.py        # 报告 CRUD
-│   │           └── chat_repo.py          # 对话记录 CRUD
-│   ├── harness/                          # 自研 Harness 框架层
-│   │   ├── llm_core/
-│   │   │   └── model_loader.py           # 模型加载器（单例 + 懒加载 + 4-bit）
-│   │   ├── llm_adapter/
-│   │   │   ├── chat_model.py             # 推理适配器 (invoke/stream + 截断)
-│   │   │   ├── create_agent.py           # Agent 工厂 + LabAgent
-│   │   │   ├── agent_loop.py             # AgentLoop 调度循环 (Phase 5)
-│   │   │   ├── tool_parser.py            # 工具调用解析 (XML+Action+JSON)
-│   │   │   └── agent_tools.py            # 4 个医疗专用工具
-│   │   ├── state/
-│   │   │   └── agent_state.py            # Agent 状态管理 (消息/快照/回滚)
-│   │   ├── prompt/
-│   │   │   └── prompt_context.py         # 四层提示词组装引擎
-│   │   └── memory/                       # 统一记忆系统
-│   │       ├── knowledge/                # 医学知识数据层
-│   │       │   ├── reference_ranges.py   # 40+ 种检验指标参考范围
-│   │       │   └── data/                 # 知识文档 + FAISS 向量库
-│   │       ├── ltm/                      # 长期记忆（用户画像/时间轴/对话/总结）
-│   │       ├── stm/                      # 短期记忆（对话缓冲/状态跟踪/压缩）
-│   │       ├── budget/                   # Token 预算分配器
-│   │       └── lifecycle/                # 会话生命周期管理
-│   ├── service/                          # 业务服务层
-│   │   └── rag/                          # RAG 检索增强生成服务
-│   │       ├── rag.py                    # RAG 系统总入口（单例）
-│   │       ├── rag_formatter.py          # 检索结果格式化 + 来源元数据提取
-│   │       ├── hybrid_retriever.py       # 混合检索（关键词+语义+重排序）
-│   │       ├── query_rewriter.py         # 医学查询改写器 (60+ 缩写)
-│   │       ├── embedding.py              # BCE 嵌入 + FAISS 向量库
-│   │       └── ...                       # 分块策略/文档加载/文本清洗
-│   ├── models/                           # 本地模型权重（需自行下载）
-│   │   ├── Qwen2.5-7B-Instruct/
-│   │   └── bce-embedding-base_v1/
-│   └── data/                             # SQLite 数据库文件
-├── ai-services-python/ocr_service/       # OCR 服务
-│   ├── main.py                           # 原 DashScope OCR (云 API, 兼容)
-│   ├── paddle_ocr.py                     # PaddleOCR 引擎 (本地, Phase 7)
-│   └── paddle_server.py                  # PaddleOCR FastAPI 入口 (:8001)
-├── frontend-vue/                         # Vue 3 前端
+dachuang/
+├── frontend/                         # Vue 3 前端
 │   └── src/
 │       ├── components/
 │       │   ├── ChatWindow.vue            # 主聊天窗口 (侧栏+来源面板)
@@ -180,17 +113,68 @@ Medical-agent/
 │       ├── stores/                       # Pinia 状态 (auth/chat)
 │       ├── services/ApiService.js        # API 封装 (新旧兼容)
 │       └── router/index.js               # 路由 + 认证守卫
+│
+├── backend/                          # 后端服务 (FastAPI :8000)
+│   ├── server.py                         # FastAPI 应用入口
+│   ├── app/
+│   │   ├── api/                          # API 路由层
+│   │   │   ├── models.py                 # Pydantic 请求/响应模型
+│   │   │   └── routes/
+│   │   │       ├── auth.py               # 注册/登录/Token 验证
+│   │   │       ├── chat.py               # 同步+SSE 流式对话
+│   │   │       └── report.py             # 报告上传+OCR+管线
+│   │   ├── core/                         # 核心配置
+│   │   │   ├── config.py                 # Pydantic 全局配置
+│   │   │   └── logging.py                # 日志配置
+│   │   ├── models/                       # 数据模型
+│   │   │   ├── database.py               # 数据库引擎 + 会话工厂
+│   │   │   └── reference_ranges.py       # 40+ 种检验指标参考范围
+│   │   └── services/                     # 业务服务层
+│   │       ├── lab_report.py             # LabReport/LabIndicator 数据模型
+│   │       ├── indicator_classifier.py   # 40+ 参考范围分类器 (年龄/性别分层)
+│   │       ├── correlation_engine.py     # 15 组多指标联动规则引擎
+│   │       ├── report_pipeline.py        # OCR→结构化→分类→联动 完整管线
+│   │       ├── interpretation_engine.py  # 6 段式解读 Prompt 组装
+│   │       ├── source_tracker.py         # 知识库来源引用追踪
+│   │       ├── dietary_advisor.py        # 10+ 类指标饮食运动建议
+│   │       └── output_guard.py           # OutputGuard 安全红线
+│
+├── ai-services/                      # AI 服务 (FastAPI :8001)
+│   ├── server.py                         # AI 服务入口
+│   ├── llm/                              # LLM 服务
+│   │   ├── chat_model.py                 # 推理适配器 (invoke/stream + 截断)
+│   │   ├── create_agent.py               # Agent 工厂 + LabAgent
+│   │   └── model_loader.py               # 模型加载器（单例 + 懒加载 + 4-bit）
+│   ├── rag/                              # RAG 检索增强生成服务
+│   │   ├── rag.py                        # RAG 系统总入口（单例）
+│   │   ├── rag_formatter.py              # 检索结果格式化 + 来源元数据提取
+│   │   ├── hybrid_retriever.py           # 混合检索（关键词+语义+重排序）
+│   │   ├── query_rewriter.py             # 医学查询改写器 (60+ 缩写)
+│   │   ├── embedding.py                  # BCE 嵌入 + FAISS 向量库
+│   │   └── ...                           # 分块策略/文档加载/文本清洗
+│   ├── memory/                           # 统一记忆系统
+│   │   ├── short_memory/                 # 短期记忆
+│   │   ├── long_term/                    # 长期记忆（用户画像/事件记录/快照）
+│   │   ├── persistence/                  # 持久化层
+│   │   └── knowledge/                    # 医学知识数据层
+│   ├── tools/                            # 工具系统
+│   │   ├── tool_registry.py              # 工具注册表
+│   │   └── tools/                        # 4 个医疗专用工具
+│   ├── ocr/                              # OCR 服务
+│   │   ├── main.py                       # 原 DashScope OCR (云 API, 兼容)
+│   │   ├── paddle_ocr.py                 # PaddleOCR 引擎 (本地)
+│   │   └── paddle_server.py              # PaddleOCR FastAPI 入口
+│   └── loop/                             # Agent 循环框架
+│       ├── agentic_loop/                 # ReAct 多步推理循环
+│       ├── context_window/               # 上下文窗口控制
+│       └── prompt/                       # 提示词组装引擎
+│
+├── models/                           # 本地模型权重（需自行下载）
+│   ├── Qwen2.5-7B-Instruct/
+│   ├── Zhinao-ChineseModernBert-Embedding/
+│   └── bge-reranker-base/
+│
 ├── test/                                 # 测试脚本
-│   ├── 终端多轮对话测试.py                # 交互式多轮对话
-│   ├── create_modle_test.py              # 模型加载单元测试
-│   ├── 验证RAG.py                        # RAG 有效性验证
-│   ├── 验证检索引擎优化.py                # 检索引擎验证
-│   ├── verify_phase1.py                  # Phase 1: FastAPI 服务层
-│   ├── verify_phase2.py                  # Phase 2: 报告处理管线
-│   ├── verify_phase3.py                  # Phase 3: 解读引擎+来源引用
-│   ├── verify_phase4_5.py                # Phase 4+5: 持久化+AgentLoop
-│   ├── verify_phase6.py                  # Phase 6: 安全红线框架
-│   └── verify_all_phases.py              # 一键全量验证
 ├── picture/                              # 测试用化验单样例
 ├── 大创文档.md                            # 技术架构设计文档
 └── README.md                             # 本文件
@@ -203,6 +187,7 @@ Medical-agent/
 - NVIDIA 显卡（≥6GB 显存，推荐 8GB+）或 CPU（推理较慢）
 - CUDA 12.4+、Python 3.11、Conda
 - Node.js 18+（仅前端）
+- Redis（消息队列 + 短期记忆）
 
 ### 1. 创建环境并安装依赖
 
@@ -224,55 +209,135 @@ pip install langchain-community langchain-core langchain-text-splitters
 
 # PaddleOCR 本地 OCR (Phase 7)
 pip install paddlepaddle==2.6.2 paddleocr==2.8.1
+
+# 前端依赖
+cd frontend && npm install && cd ..
 ```
 
 ### 2. 下载模型权重
 
 ```powershell
 # Qwen2.5-7B-Instruct (主模型, ~14GB)
-python -c "from modelscope import snapshot_download; snapshot_download('qwen/Qwen2.5-7B-Instruct', cache_dir='python_service/models/Qwen2.5-7B-Instruct')"
+python -c "from modelscope import snapshot_download; snapshot_download('qwen/Qwen2.5-7B-Instruct', cache_dir='models/Qwen2.5-7B-Instruct')"
 
-# bce-embedding-base_v1 (嵌入模型, ~1GB)
-python -c "from huggingface_hub import snapshot_download; snapshot_download('maidalun1020/bce-embedding-base_v1', local_dir='python_service/models/bce-embedding-base_v1')"
+# Zhinao-ChineseModernBert-Embedding (嵌入模型)
+python -c "from modelscope import snapshot_download; snapshot_download('Zhinao/ChineseModernBert-Embedding', cache_dir='models/Zhinao-ChineseModernBert-Embedding')"
+
+# bge-reranker-base (重排序模型)
+python -c "from modelscope import snapshot_download; snapshot_download('BAAI/bge-reranker-base', cache_dir='models/bge-reranker-base')"
 ```
 
 ### 3. 配置环境变量
 
-编辑 `python_service/.env`：
+编辑 `.env`：
 
 ```env
-RAG_USE_LOCAL_EMBEDDING=true
-LLM_MODEL_PATH=./models/Qwen2.5-7B-Instruct
-RAG_LOCAL_EMBEDDING_PATH=./models/bce-embedding-base_v1
-VECTOR_DB_PATH=./harness/memory/knowledge/data/vector_db
+# 模型路径
+LLM_MODEL_PATH=E:\xiangmu\dachuang\models\Qwen2.5-7B-Instruct
+EMBEDDING_MODEL_PATH=E:\xiangmu\dachuang\models\Zhinao-ChineseModernBert-Embedding
+RERANKER_MODEL_PATH=E:\xiangmu\dachuang\models\bge-reranker-base
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# 服务地址
+OCR_SERVICE_URL=http://localhost:8001
+BACKEND_URL=http://localhost:8000
 ```
 
-### 4. 启动服务 (三终端)
+### 4. 启动服务
+
+需要 **6 个终端窗口**，按顺序启动：
 
 ```powershell
-# 终端 1: Python 后端
-conda activate medlabagent
-cd Medical-agent/python_service
-python server.py
-# → http://localhost:8000 (Swagger: /docs)
+# ===== 终端 1：Redis（必须先启动）=====
+# Windows: 双击 redis-server.exe 或
+redis-server
 
-# 终端 2: PaddleOCR 服务
+# ===== 终端 2：后端 FastAPI 服务（:8000）=====
 conda activate medagent
-cd Medical-agent/ai-services-python/ocr_service
-python paddle_server.py
-# → http://localhost:8001 (首次启动自动下载 PP-OCRv4 模型 ~80MB)
+cd backend
+python server.py
+# → http://localhost:8000/docs (Swagger UI)
 
-# 终端 3: 前端
-cd frontend-vue
+# ===== 终端 3：Loop Worker（任务调度器）=====
+conda activate medagent
+cd backend
+python -m app.worker.loop_worker
+# 消费 Redis 任务队列，分发给 LLM/RAG/OCR
+
+# ===== 终端 4：LLM Worker（大模型推理）=====
+conda activate medagent
+cd backend
+python -m app.worker.llm_worker
+# 加载 Qwen2.5-7B 模型，首次启动约 30 秒
+
+# ===== 终端 5：RAG Worker（知识检索）=====
+conda activate medagent
+cd backend
+python -m app.worker.rag_worker
+# 加载 SentenceTransformer + CrossEncoder，首次约 25 秒
+
+# ===== 终端 6：前端（:8888）=====
+cd frontend
 npm run dev
 # → http://localhost:8888
 ```
 
-### 5. 验证
+> **OCR Worker**（可选）：如需本地 OCR 识别化验单，另开终端运行：
+> ```powershell
+> conda activate medagent
+> cd backend
+> python -m app.worker.ocr_worker
+> ```
+
+### 5. 启动顺序说明
+
+```
+Redis → FastAPI 服务 → Worker 进程 → 前端
+```
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| Redis | 6379 | 消息队列 + 短期记忆存储 |
+| FastAPI 服务 | 8000 | API 网关 + WebSocket 推送 |
+| Loop Worker | — | 任务调度：ReAct（对话）/ Plan（报告） |
+| LLM Worker | — | Qwen2.5-7B 推理，消费 `medlab:list:llm` 队列 |
+| RAG Worker | — | 知识检索，消费 `medlab:list:rag` 队列 |
+| OCR Worker | — | PaddleOCR 识别，消费 `medlab:list:ocr` 队列 |
+| 前端 | 8888 | Vue 3 开发服务器 |
+
+### Worker 架构
+
+```
+前端 WebSocket
+     │
+     ▼
+FastAPI 服务 (:8000) ── submit_task ──→ Redis 队列
+                                            │
+                                            ▼
+                                     Loop Worker（调度器）
+                                      ├─ chat  → ReAct 循环（think→act→observe）
+                                      └─ report → Plan 循环（plan→execute→synthesize）
+                                           │
+                              ┌─────────────┼─────────────┐
+                              ▼             ▼             ▼
+                         LLM Worker    RAG Worker    OCR Worker
+                         (模型推理)    (知识检索)    (OCR识别)
+                              │             │             │
+                              └─────────────┼─────────────┘
+                                            ▼
+                                     Redis Pub/Sub
+                                            │
+                                            ▼
+                                     WebSocket 推送 → 前端
+```
+
+### 6. 验证
 
 ```powershell
 conda activate medagent
-cd Medical-agent
 
 # 一键验证所有模块 (无需 GPU/模型)
 python test/verify_all_phases.py
@@ -287,6 +352,17 @@ python test/verify_phase6.py        # 安全红线
 # 原始终端对话测试 (需 GPU + 模型)
 python test/终端多轮对话测试.py
 ```
+
+### 7. 常见问题
+
+**Q: 启动后页面一直转圈？**
+A: 检查 Redis 是否运行、AI 服务是否启动完成（模型加载需要时间）。
+
+**Q: RAG 响应很慢？**
+A: 首次调用需要加载 SentenceTransformer 和 CrossEncoder 模型，约 25-35 秒。后续调用会很快（1-2 秒）。
+
+**Q: 如何清空所有数据重新开始？**
+A: 启动 redis-cli 执行 `FLUSHALL`，然后刷新前端页面。
 
 ## 核心架构
 
@@ -350,14 +426,14 @@ Assistant:                      ← 生成触发标记
 
 | 文件 | 改动 | 影响 |
 |------|------|------|
-| `harness/llm_adapter/create_agent.py` | +`_safety_check()` + `agent_loop()` | 安全检测 + 多步推理 |
-| `harness/llm_adapter/chat_model.py` | +话题标签截断 + 流式停止检测 | 抑制小模型幻觉 |
-| `service/rag/rag_formatter.py` | +`extract_source_metadata()` | 结构化来源输出 |
-| `ai-services-python/ocr_service/main.py` | REDIS_HOST 支持环境变量 + 本地文件读取 | 本地开发兼容 |
-| `frontend-vue/vite.config.js` | 代理指向 :8000 + 新增 /v1 代理 | 对接新后端 |
-| `frontend-vue/src/App.vue` | 移除不存在的 intro.mp4 | 修复启动报错 |
-| `frontend-vue/src/services/ApiService.js` | 新增 10 个 API 方法 + 修复双 /api | 对接新后端 |
-| `frontend-vue/src/components/ChatWindow.vue` | 集成指标面板 + 上传组件 + 来源引用 | 业务页面 |
+| `ai-services/llm/create_agent.py` | +`_safety_check()` + `agent_loop()` | 安全检测 + 多步推理 |
+| `ai-services/llm/chat_model.py` | +话题标签截断 + 流式停止检测 | 抑制小模型幻觉 |
+| `ai-services/rag/rag_formatter.py` | +`extract_source_metadata()` | 结构化来源输出 |
+| `ai-services/ocr/main.py` | REDIS_HOST 支持环境变量 + 本地文件读取 | 本地开发兼容 |
+| `frontend/vite.config.js` | 代理指向 :8000 + 新增 /v1 代理 | 对接新后端 |
+| `frontend/src/App.vue` | 移除不存在的 intro.mp4 | 修复启动报错 |
+| `frontend/src/services/ApiService.js` | 新增 10 个 API 方法 + 修复双 /api | 对接新后端 |
+| `frontend/src/components/ChatWindow.vue` | 集成指标面板 + 上传组件 + 来源引用 | 业务页面 |
 
 ## 分支说明
 

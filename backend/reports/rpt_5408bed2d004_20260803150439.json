@@ -1,0 +1,113 @@
+{
+  "report_id": "rpt_5408bed2d004_20260803150439",
+  "user_id": "777777777777777777",
+  "report_date": "2026-07-29",
+  "file_path": "E:\\xiangmu\\dachuang\\backend\\app\\api\\routes\\..\\..\\uploads\\6509f8c9d5be4ab88c9e190f1261d289.png",
+  "total_count": 10,
+  "abnormal_count": 2,
+  "normal_count": 8,
+  "has_critical": true,
+  "indicators": [
+    {
+      "key": "hemoglobin",
+      "name": "血红蛋白 (Hemoglobin)",
+      "value": 14.2,
+      "unit": "g/L",
+      "ref_range": "110-160 g/L",
+      "status": "critical_low",
+      "description": "",
+      "is_critical": true
+    },
+    {
+      "key": "creatinine",
+      "name": "血肌酐 (Creatinine)",
+      "value": 96.2,
+      "unit": "μmol/L",
+      "ref_range": "44-88 μmol/L",
+      "status": "high",
+      "description": "",
+      "is_critical": false
+    },
+    {
+      "key": "bun",
+      "name": "血尿素氮 (Blood Urea Nitrogen)",
+      "value": 5.7,
+      "unit": "mmol/L",
+      "ref_range": "2.5-7.1 mmol/L",
+      "status": "normal",
+      "description": "",
+      "is_critical": false
+    },
+    {
+      "key": "uric_acid",
+      "name": "血尿酸 (Uric Acid)",
+      "value": 308.0,
+      "unit": "μmol/L",
+      "ref_range": "140-380 μmol/L",
+      "status": "normal",
+      "description": "",
+      "is_critical": false
+    },
+    {
+      "key": "alt",
+      "name": "丙氨酸氨基转移酶 (Alanine Aminotransferase)",
+      "value": 28.0,
+      "unit": "U/L",
+      "ref_range": "< 40 U/L",
+      "status": "normal",
+      "description": "",
+      "is_critical": false
+    },
+    {
+      "key": "ast",
+      "name": "天冬氨酸氨基转移酶 (Aspartate Aminotransferase)",
+      "value": 32.0,
+      "unit": "U/L",
+      "ref_range": "< 40 U/L",
+      "status": "normal",
+      "description": "",
+      "is_critical": false
+    },
+    {
+      "key": "tbil",
+      "name": "总胆红素 (Total Bilirubin)",
+      "value": 15.2,
+      "unit": "μmol/L",
+      "ref_range": "0-21 μmol/L",
+      "status": "normal",
+      "description": "",
+      "is_critical": false
+    },
+    {
+      "key": "wbc",
+      "name": "白细胞计数 (White Blood Cell Count)",
+      "value": 7.2,
+      "unit": "×10⁹/L",
+      "ref_range": "4.5-11.0 ×10⁹/L",
+      "status": "normal",
+      "description": "",
+      "is_critical": false
+    },
+    {
+      "key": "rbc",
+      "name": "红细胞计数 (Red Blood Cell Count)",
+      "value": 4.8,
+      "unit": "×10¹²/L",
+      "ref_range": "4.0-5.3 ×10¹²/L",
+      "status": "normal",
+      "description": "",
+      "is_critical": false
+    },
+    {
+      "key": "plt",
+      "name": "血小板计数 (Platelet Count)",
+      "value": 250.0,
+      "unit": "×10⁹/L",
+      "ref_range": "150-400 ×10⁹/L",
+      "status": "normal",
+      "description": "",
+      "is_critical": false
+    }
+  ],
+  "created_at": "2026-08-03 15:04:39"
+}

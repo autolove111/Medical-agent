@@ -1,0 +1,14 @@
+# 工具定义 — 供 prompt 加载
+# 仅保留 RAG 知识检索工具
+
+tools:
+  - name: search_knowledge
+    description: 从医学知识库检索专业医学知识
+    parameters:
+      query:
+        type: string
+        description: 检索问题或关键词
+      top_k:
+        type: integer
+        description: 返回结果条数
+        default: 3

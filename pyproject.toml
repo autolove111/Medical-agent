@@ -1,0 +1,88 @@
+[project]
+name = "medlab-ai-services"
+version = "0.1.0"
+description = "AI 服务：RAG 检索、OCR 识别、智能问答"
+requires-python = ">=3.11"
+authors = [
+    { name = "李泽霖" },
+]
+
+dependencies = [
+    # ── Web 框架 ──
+    "fastapi>=0.100",
+    "uvicorn>=0.20",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+
+    # ── 数据库 ──
+    "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9",
+    "psycopg>=3.0",
+    "pgvector>=0.3",
+    "redis>=5.0",
+
+    # ── LlamaIndex（RAG 核心）──
+    "llama-index>=0.14",
+    "llama-index-core>=0.14",
+    "llama-index-embeddings-huggingface>=0.7",
+    "llama-index-embeddings-openai>=0.6",
+    "llama-index-vector-stores-postgres>=0.8",
+    "llama-index-vector-stores-faiss>=0.6",
+    "llama-index-readers-file>=0.6",
+    "llama-index-retrievers-bm25>=0.7",
+
+    # ── LangChain ──
+    "langchain>=1.0",
+    "langchain-core>=1.0",
+    "langchain-community>=0.4",
+    "langchain-openai>=1.0",
+
+    # ── Embedding / 模型 ──
+    "sentence-transformers>=3.0",
+    "transformers>=4.40",
+    "huggingface_hub>=0.20",
+    "modelscope>=1.10",
+
+    # ── 文档处理 ──
+    "pymupdf4llm>=1.0",
+    "python-docx>=1.0",
+    "docx2txt>=0.8",
+    "pillow>=10.0",
+
+    # ── 通用工具 ──
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "requests>=2.30",
+    "python-dotenv>=1.0",
+    "scikit-learn>=1.4",
+]
+
+[project.optional-dependencies]
+# GPU 版 PyTorch（需要单独装，不走 pip 默认源）
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+gpu = [
+    "torch>=2.11",
+    "torchvision>=0.26",
+]
+
+# OCR 服务
+ocr = [
+    "paddlepaddle>=2.5",
+    "paddleocr>=2.7",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.setuptools.packages.find]
+where = ["ai-services"]
+include = [
+    "core*",
+    "rag*",
+    "memory*",
+    "tools*",
+    "llm*",
+    "loop*",
+    "ocr*",
+]

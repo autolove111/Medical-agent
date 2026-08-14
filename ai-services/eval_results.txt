@@ -1,0 +1,697 @@
+Loaded 50 test cases from rag/tests/test_set.json
+Detected numeric node IDs, converting to UUIDs...
+Built chunk_index to UUID mapping: 2465 entries
+Converted numeric IDs to UUIDs: ['1760', '1761', '1762'] -> ['304ebf10-5766-45cd-8965-5bb28e27b0a9', 'a0108873-be45-4cf5-89fd-730956ad15ac', 'bd11a137-13df-46f1-9519-77dfc73f45ed']
+Converted numeric IDs to UUIDs: ['1763', '1764', '1765'] -> ['3f26bacf-526b-471e-8973-eab117499a74', '0f640fc8-08d1-40af-9335-6d2f6bc20938', 'f380ee55-1256-43cf-9906-2c06b5b9d087']
+Converted numeric IDs to UUIDs: ['1776', '1777', '1778'] -> ['d60bd66d-3b92-47ae-bd8b-14f3a1a0a0ae', '96e973c3-4b5f-4831-8893-b5f00b25fb57', '27c5b21d-926a-466c-b330-0b766396c424']
+Converted numeric IDs to UUIDs: ['1778', '1779', '1776'] -> ['27c5b21d-926a-466c-b330-0b766396c424', '03624e8a-c969-4e4f-a857-7e7116edc00b', 'd60bd66d-3b92-47ae-bd8b-14f3a1a0a0ae']
+Converted numeric IDs to UUIDs: ['1780', '1781', '1782'] -> ['0d1b3ec5-bae7-4f63-95c7-3d9ea1b8ae4f', 'cd9d0af6-fe99-46c8-8c75-46b146646a3b', '328fcd07-cf11-4a7e-91ab-52b3a19106c7']
+Converted numeric IDs to UUIDs: ['1786', '1783', '1784'] -> ['e5af526e-7a52-4ec1-9c7a-95ae2f66ecd7', 'c3662b7e-7bb6-4c92-8f65-afbe2c2ebb4a', '9fdd32b0-22b3-4460-a66c-1ac5f1248852']
+Converted numeric IDs to UUIDs: ['1787', '1789', '1791'] -> ['2c27231f-694b-4f03-bdc7-47af692e2957', '6fa3c7a7-46cd-46af-a1b4-1aaf543da4f6', '5bc5ecd6-03f6-45c1-9d8f-e634d7d75882']
+Converted numeric IDs to UUIDs: ['1792', '1793', '1796'] -> ['85093a1e-c90a-4ba0-918a-c64a4783a8a0', 'ac479121-6b52-439f-881d-be31883bb125', '75ecd75e-84d6-4bbb-9c85-8f74b8a8f160']
+Converted numeric IDs to UUIDs: ['1797', '1798', '1816'] -> ['5aa81440-76fb-497f-ae7c-fc94c1b7fe68', '657e1aa7-15a3-418b-adf8-efe92fbf9c12', '08d0f85b-46ac-4dcf-b5e5-4a8fdb2e0243']
+Converted numeric IDs to UUIDs: ['1802', '1803', '1805'] -> ['9bfad7f8-a95c-483d-8c98-3a09035dbeb4', 'a600f8c7-8d8a-4716-acb3-9ebbac092705', 'ee33a11e-d949-4a33-8a7b-afd62713f1d4']
+Converted numeric IDs to UUIDs: ['1815', '1828', '1797'] -> ['b5422299-69fe-4dd3-9fcc-956760861d16', '8f1a949c-840a-4853-99b8-8b5206896fdc', '5aa81440-76fb-497f-ae7c-fc94c1b7fe68']
+Converted numeric IDs to UUIDs: ['1822', '1824', '1825'] -> ['8a0af5a3-1efc-4a41-94ed-0f89c57f79fe', '6e073d7e-eb91-4954-a573-3cc1fc792d8b', 'a58e9d13-237d-441f-8870-94ad43e4bdf5']
+Converted numeric IDs to UUIDs: ['1834', '1836', '1838'] -> ['262861a4-7f37-45f1-9cb6-a7086c16b21f', '458eca71-46c3-479d-8fa9-9d493e78d309', 'c61e095c-098a-4510-9993-e31d22aaf2d1']
+Converted numeric IDs to UUIDs: ['1838', '1839', '1840'] -> ['c61e095c-098a-4510-9993-e31d22aaf2d1', '354c93db-c02a-4f28-b48f-92f1a48ec4e1', 'd0db4188-dea2-47d8-b55f-8e8391a32c9d']
+Converted numeric IDs to UUIDs: ['1841', '1842', '1843'] -> ['0d2f4959-ba8c-42e6-9937-b50d9e4b16e3', 'b143c586-9f15-4fbc-82a9-549141211af4', 'a8fcded5-7275-4784-aff1-4ef0e48ae370']
+Converted numeric IDs to UUIDs: ['1845', '1842', '1844'] -> ['939b8bc1-3a0f-4bab-822f-54405f33c7b0', 'b143c586-9f15-4fbc-82a9-549141211af4', '95450a12-335a-4dd5-954f-2db6a370420d']
+Converted numeric IDs to UUIDs: ['1846', '1847', '1849'] -> ['e70a5a7e-a68a-48f8-a7c4-95e24055c7e2', '615fdbed-77df-4e38-a725-22cc89b4f94c', 'ef79e1a6-700f-4f19-8e78-d7ca4e898c3a']
+Converted numeric IDs to UUIDs: ['1851', '1852', '1850'] -> ['c52fb0ac-276d-4932-8f87-c3adad6df40b', '4d90df44-4ec4-4e2e-8018-1c9ac7853433', '16cbf685-2967-4e65-b912-819ecb89957d']
+Converted numeric IDs to UUIDs: ['1854', '1856', '1857'] -> ['02995ab1-785e-4c6c-8190-f57560d115c7', 'c799e7c7-0dc5-4415-b922-313ce295878d', '30f7cf15-4a2d-4581-968e-3a9d29fcf50a']
+Converted numeric IDs to UUIDs: ['1858', '1859', '1861'] -> ['d61f8ef7-5065-405a-aea8-92be1caebc43', '209ea176-af53-4d51-895d-2d6404705f0e', '28349f85-535b-45eb-a478-34f3c12e3a0c']
+Converted numeric IDs to UUIDs: ['1864', '1865', '1868'] -> ['a79a15c7-7466-4e3b-87b3-4276b8ab9fdb', 'b241aed9-5153-4a4e-83de-c9f18c58ad6b', '8aa7987e-2c22-4234-915b-37f8a885f350']
+Converted numeric IDs to UUIDs: ['1870', '1871', '1875'] -> ['363f7609-cbd4-414e-95cb-aa0e9dc9fef8', '96414389-455f-4592-ae04-39746093d8b6', '608d3cb7-9f03-4ffa-9218-ce3466da2400']
+Converted numeric IDs to UUIDs: ['1876', '1879', '1881'] -> ['b976259a-b224-4f1a-9129-2e4c046e3ebe', '84745845-c772-45ca-9ca8-082024b216a5', '5c6fef06-4a0d-424a-beb0-73eacf18c7ae']
+Converted numeric IDs to UUIDs: ['1885', '1886', '1887'] -> ['3360b075-4cb2-4fe4-a394-0937a6c0339d', 'be2f6559-828d-40c8-9e93-08d84c5e6043', 'dd954510-e707-494a-b004-49529fa0f08f']
+Converted numeric IDs to UUIDs: ['1892', '1893', '1894'] -> ['b017935a-6aac-4abe-8ec2-81afdef8e0e9', '32bdcfb6-a3d4-4bea-b765-3d4e7225a091', '39bde606-561b-4158-ae2f-f16c48112788']
+Converted numeric IDs to UUIDs: ['1899', '1906', '1912'] -> ['c109477c-21b5-474c-90ee-a8558b4d79f0', '6e21f61b-5c7c-4e84-961f-5b818bf0056e', '73c44aff-9550-4633-abed-445c2d7b2d0a']
+Converted numeric IDs to UUIDs: ['1913', '1914', '1915'] -> ['df85cef5-b6ce-4a0d-9def-6e4022ce094e', 'f3cfe3d3-c78f-4825-9d92-2ab7f03bf616', 'd0b322e9-5672-47ca-8ec8-3c94bb66c0ca']
+Converted numeric IDs to UUIDs: ['1916', '1917', '1918'] -> ['c419333f-d7db-44ca-ac9d-79fc52ac8f93', '8d9571f2-36ac-4b84-b7b7-2c2c5d33e039', '3be5cf01-a6af-49ab-aaf3-721848076b84']
+Converted numeric IDs to UUIDs: ['1919', '1918', '1916'] -> ['79884f1e-b23f-4e92-a80b-02002649a852', '3be5cf01-a6af-49ab-aaf3-721848076b84', 'c419333f-d7db-44ca-ac9d-79fc52ac8f93']
+Converted numeric IDs to UUIDs: ['1920', '1921', '1922'] -> ['98f7306e-405f-4571-b675-7dddbe846340', '97e1f50d-add0-458f-8232-c49d50d0f5a7', 'c5997ec0-261f-44f2-b26c-bb6cc21b45fe']
+Converted numeric IDs to UUIDs: ['1923', '1924', '1925'] -> ['a002f63e-f22a-45c5-9ea3-281a9a371fc4', 'c3178bb2-a678-4397-bbd0-f1973dc3b18d', '504f624c-3fd2-4f60-928c-4e727fc0cbc2']
+Converted numeric IDs to UUIDs: ['1925', '1926', '1927'] -> ['504f624c-3fd2-4f60-928c-4e727fc0cbc2', 'fd9159aa-bf17-4383-b2d1-fbc3778777d9', '4e436612-3fc9-4e31-bc93-0048300eebf6']
+Converted numeric IDs to UUIDs: ['1928', '1927', '1926'] -> ['8dcb90a9-4802-4d8d-9240-b39077fa3b16', '4e436612-3fc9-4e31-bc93-0048300eebf6', 'fd9159aa-bf17-4383-b2d1-fbc3778777d9']
+Converted numeric IDs to UUIDs: ['1929', '1930', '1931'] -> ['14bc2381-ae62-4f26-8717-d1f84b332b7c', 'f012d673-a80b-42bb-bb28-bc5d7e64d71d', 'adb0a0be-346f-4e99-a337-92c056b3d7c6']
+Converted numeric IDs to UUIDs: ['1932', '1933', '1934'] -> ['5dc05cce-d01a-4d39-bf34-bc2dc8a66810', 'a928c0f5-9ff7-44f9-a468-ac474985990c', 'b9798acc-e5de-4536-84d7-578ef8ae2ba3']
+Converted numeric IDs to UUIDs: ['1935', '1930', '1932'] -> ['d223c776-66d8-414e-ba9c-253313e3a2e2', 'f012d673-a80b-42bb-bb28-bc5d7e64d71d', '5dc05cce-d01a-4d39-bf34-bc2dc8a66810']
+Converted numeric IDs to UUIDs: ['1936', '1938', '1939'] -> ['918b30bd-b2ce-4415-aa28-df35356ddb9a', '66e1cb3b-88f6-43d0-9286-c67f515062ee', 'e490b969-a027-4560-9f0c-46bb4842c2a9']
+Converted numeric IDs to UUIDs: ['1941', '1942', '1946'] -> ['49dadc84-aadb-40aa-ace1-54c9db40516d', '732473b7-dfe6-4f44-ab17-c490b428570d', '7242d9a2-a72f-4a8d-875c-07d8d4813c7a']
+Converted numeric IDs to UUIDs: ['1955', '1956', '1957'] -> ['24101132-4129-4799-812f-5a0c4dc98aa9', '6e67438e-be34-48cb-be5e-82d0f4726964', 'a3ee7c56-8035-4621-9710-94de50577f56']
+Converted numeric IDs to UUIDs: ['1963', '1964', '1965'] -> ['d9c15c69-0a40-45f3-ad5a-c7ad0d7440b8', 'ff0e4b5d-fe9d-4131-a194-a24e80f9cd7b', 'db6aa0b2-554c-4247-8538-bde019220aff']
+Converted numeric IDs to UUIDs: ['1967', '1968', '1969'] -> ['82df0869-cdc7-412b-8e91-d39dba97e1e4', 'b743efd3-ce44-4cdc-bcae-edec84b0e105', '814bf1b0-ed6e-426d-bc4e-52ebb56bfd21']
+Converted numeric IDs to UUIDs: ['1972', '1973', '1974'] -> ['86f47440-5c86-4df5-b590-96af36bd9d3f', '588d017f-77c3-405f-94cf-a613267cb163', 'f30c2814-2ef3-4937-8cbc-438c7f8efeb9']
+Converted numeric IDs to UUIDs: ['1975', '1976', '1977'] -> ['5f7d448b-7d38-4673-beeb-f34a1236d7ef', 'db684338-e3f9-4c4b-823e-b2ff3868bfb5', '4d68aaa6-5f6d-43ad-91fd-f95799c3dc86']
+Converted numeric IDs to UUIDs: ['1978', '1979', '1989'] -> ['9caf3127-15d7-46a9-92c4-764b1eea7333', '9971cbee-a1f1-4937-91e7-1c7214bec53c', 'efbd4df3-bf32-4ffa-9453-f027673c120a']
+Converted numeric IDs to UUIDs: ['1994', '1996', '1998'] -> ['c2e1a7b1-02bc-4247-b0f3-6b3cf4fdfd93', '0b5d28ed-d987-4e96-acab-6756e6e6c55b', '963908db-b4a1-42a5-adfd-bb1a58b3d701']
+Converted numeric IDs to UUIDs: ['1999', '2001', '2002'] -> ['98bdd781-c59a-4663-8ef8-a703242c4810', '8a953e17-4cb3-4dd0-b0f4-d6ea88250cb8', 'eafa12f0-d454-4c93-b1bb-d917730f00dd']
+Converted numeric IDs to UUIDs: ['2007', '2008', '2009'] -> ['f5beee11-91ed-4920-abd2-afaf03b893c8', 'ed2c19d7-8185-4ee1-870f-ed1d0c15f16b', '3cb05c06-7445-4296-ab30-c6280d4cf9c8']
+Converted numeric IDs to UUIDs: ['2012', '2010', '2011'] -> ['77ad9f87-2a99-48e3-b81d-c62bd6fb2a87', 'b0f7069c-b7eb-4aba-aa70-7b40cb8ef58a', '41382766-baf6-42a0-b9f0-6e940d86ff23']
+Converted numeric IDs to UUIDs: ['2013', '2014', '2015'] -> ['8c93f9c6-76bd-489e-80c7-7aca1d2e2fd3', '6bcbf07e-4d5a-49a9-bf2e-2d2bba9e1763', '1c208138-a32e-4dbc-b954-61f62aa7e8fa']
+Converted numeric IDs to UUIDs: ['2017', '2018', '2019'] -> ['42ada0b3-d668-4f55-be77-e610501b451f', 'cfb55335-6fec-4b1c-8578-48908701ec12', '248ab235-a452-471b-85ea-ff07d0bd1b1b']
+[1/50] Evaluating: 原发性肾小球疾病的临床分型有哪些？
+  Matching headings: ['原发性肾小球疾病的分类', '原发性肾小球疾病的分类', '原发性肾小球疾病的分类']
+Note: NumExpr detected 20 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+NumExpr defaulting to 16 threads.
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Initializing QueryEngine...
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+Loaded index from PostgreSQL | table=knowledge_vectors
+Loaded 20274 nodes from PostgreSQL for BM25
+Reranker: loading CrossEncoder from E:\xiangmu\dachuang\models\bge-reranker-base on cpu
+No modules.json found for E:\xiangmu\dachuang\models\bge-reranker-base, initializing a new CrossEncoder model.
+Reranker: CrossEncoder loaded
+QueryEngine initialized | nodes=20274 reranker=available
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=原发性肾小球疾病的临床分型有哪些？
+Reranker: 40 -> 39 nodes | scores=[1.000, 1.000, 1.000, 0.999, 0.999, 0.999, 0.999, 0.998, 0.998, 0.998, 0.998, 0.997, 0.997, 0.996, 0.996, 0.994, 0.993, 0.987, 0.984, 0.978, 0.975, 0.970, 0.969, 0.966, 0.965, 0.963, 0.953, 0.953, 0.938, 0.933, 0.921, 0.920, 0.910, 0.780, 0.578, 0.557, 0.482, 0.408, 0.109, 0.061]
+RAG result | nodes=39 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 1.000) 于全身性疾病的肾小球损害，如狼疮性肾炎、糖尿病肾脏病等；遗传性肾小球疾病为遗传基因突变所致的肾小球疾病，如Alport综合征等。 本章主要介绍原发性肾小球疾病,目前仍是我国终末期肾病最主要的病因。 于全身性疾病的肾小球损害，如狼疮性肾炎、糖尿病肾脏病等；遗传性肾小球疾病为遗传基因突变所致的肾小球疾病，如Alport综合征等。 本章主要介绍原发性肾小球疾病,目前仍是我国终末期肾病最主要的病因。 【原发性肾小球疾病的分类】原发性肾小球疾病可根据临床表现和肾脏活检病理改变进行分型。 （一）临床分型 原发性肾小球疾病...
+  Retrieved 39 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 66.67%  Precision@10: 20.00%  nDCG@10: 30.84%
+  MRR: 0.1667
+  Top 5 results:
+    [ ] #1  score=0.9997  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第一节 | 肾小球疾病概述
+    [ ] #2  score=0.9997  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型
+    [ ] #3  score=0.9996  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型 > #### 三、原发性肾小球疾病的临床分型 > ####
+    [ ] #4  score=0.9992  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型 > #### 三、原发性肾小球疾病的临床分型
+    [ ] #5  score=0.9990  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型 > #### 二、“肾炎”与“肾病”的概念
+[2/50] Evaluating: 肾小球疾病的发病机制是什么？
+  Matching headings: ['发病机制', '发病机制', '发病机制']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾小球疾病的发病机制是什么？
+Reranker: 40 -> 39 nodes | scores=[0.999, 0.999, 0.998, 0.998, 0.997, 0.997, 0.996, 0.996, 0.995, 0.994, 0.991, 0.988, 0.987, 0.987, 0.986, 0.986, 0.986, 0.985, 0.984, 0.981, 0.981, 0.966, 0.933, 0.932, 0.907, 0.904, 0.900, 0.894, 0.860, 0.846, 0.760, 0.745, 0.741, 0.714, 0.674, 0.663, 0.605, 0.368, 0.256, 0.037]
+RAG result | nodes=39 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.999) 不同的临床表现。因此,肾活检是确定肾 小球疾病病理类型和病变程度的必需手段,而正确的病理诊断又必须与临床密切结合。临床工作中,一般首先需要对肾小球疾病进行临床分型,然后在适当的条件下进行病理学评估。 不同的临床表现。因此,肾活检是确定肾 小球疾病病理类型和病变程度的必需手段,而正确的病理诊断又必须与临床密切结合。临床工作中,一般首先需要对肾小球疾病进行临床分型,然后在适当的条件下进行病理学评估。 【发病机制】原发性肾小球疾病的发病机制尚未完全明确。多数肾小球疾病是免疫反应介导性炎症疾病。一般认为，免疫反应是肾...
+  Retrieved 39 docs
+  Recall@5: 11.76%  Precision@5: 40.00%  nDCG@5: 34.52%
+  Recall@10: 17.65%  Precision@10: 30.00%  nDCG@10: 28.76%
+  MRR: 0.5000
+  Top 5 results:
+    [ ] #1  score=0.9993  heading=# 第一篇
+    [\u2713] #2  score=0.9987  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第一节 | 肾小球疾病概述 > ##### 【发病机制】原发性肾
+    [ ] #3  score=0.9976  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第六节 膜增生性肾小球肾炎 > #### 七、预后
+    [ ] #4  score=0.9975  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第四节 足细胞病:微小病变肾病、局灶节段性肾小球硬
+    [\u2713] #5  score=0.9972  heading=# 第十三篇肾间质疾病 > ## 第一章概述及临床表型 > #### 四、发病机制 > ###### （四）其他发病机制
+[3/50] Evaluating: 急性肾小球肾炎的病因和发病机制是什么？
+  Matching headings: ['病因和发病机制', '病理表现', '临床表现和实验室检查']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=急性肾小球肾炎的病因和发病机制是什么？
+Reranker: 40 -> 40 nodes | scores=[1.000, 0.999, 0.999, 0.998, 0.997, 0.997, 0.997, 0.997, 0.996, 0.995, 0.995, 0.994, 0.993, 0.992, 0.992, 0.990, 0.986, 0.980, 0.976, 0.975, 0.974, 0.966, 0.960, 0.952, 0.950, 0.913, 0.911, 0.893, 0.887, 0.875, 0.870, 0.846, 0.805, 0.781, 0.746, 0.522, 0.484, 0.442, 0.390, 0.304]
+RAG result | nodes=40 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 1.000) 急进性肾小球肾炎(rapidly progressive glomerulonephritis, RPGN)即急进性肾炎,是在急性肾炎综合征基础上,肾功能快速进展,病理类型为新月体肾炎的一组疾病。 急进性肾小球肾炎(rapidly progressive glomerulonephritis, RPGN)即急进性肾炎,是在急性肾炎综合征基础上,肾功能快速进展,病理类型为新月体肾炎的一组疾病。 【病因和发病机制】根据免疫病理RPGN可分为三型,每型病因和发病机制各异:①I型,又称抗肾小球基底膜(GBM)型,因抗...
+  Retrieved 40 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 0.00%  Precision@10: 0.00%  nDCG@10: 0.00%
+  MRR: 0.0435
+  Top 5 results:
+    [ ] #1  score=0.9995  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第三节 | 急进性肾小球肾炎
+    [ ] #2  score=0.9992  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第一节 急性感染后肾小球肾炎 > #### 一、急
+    [ ] #3  score=0.9986  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第一节 急性感染后肾小球肾炎 > #### 一、急
+    [ ] #4  score=0.9977  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第二节 | 急性肾小球肾炎
+    [ ] #5  score=0.9974  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型 > #### 三、原发性肾小球疾病的临床分型
+[4/50] Evaluating: 急性肾小球肾炎的诊断标准和肾活检指征？
+  Matching headings: ['临床表现和实验室检查', '诊断与鉴别诊断', '病因和发病机制']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=急性肾小球肾炎的诊断标准和肾活检指征？
+Reranker: 40 -> 38 nodes | scores=[0.999, 0.998, 0.998, 0.998, 0.994, 0.993, 0.993, 0.991, 0.989, 0.984, 0.984, 0.981, 0.955, 0.950, 0.941, 0.938, 0.933, 0.918, 0.894, 0.885, 0.859, 0.851, 0.834, 0.820, 0.818, 0.808, 0.780, 0.757, 0.752, 0.711, 0.597, 0.573, 0.539, 0.408, 0.337, 0.199, 0.175, 0.144, 0.001, 0.000]
+RAG result | nodes=38 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.999) 临床诊断困难时,急性肾炎综合征病人需考虑进行肾活检以明确诊断、指导治疗。肾活检的指征为:①少尿1周以上或进行性尿量减少伴肾功能恶化者;②病程超过2个月而无好转趋势者;③急性肾炎综合征伴肾病综合征者。 临床诊断困难时,急性肾炎综合征病人需考虑进行肾活检以明确诊断、指导治疗。肾活检的指征为:①少尿1周以上或进行性尿量减少伴肾功能恶化者;②病程超过2个月而无好转趋势者;③急性肾炎综合征伴肾病综合征者。 【治疗】支持及对症治疗为主。急性期卧床休息，静待肉眼血尿消失、水肿消退及血压恢复正常。同时限盐、利尿消肿以降血压和...
+  Retrieved 38 docs
+  Recall@5: 37.50%  Precision@5: 60.00%  nDCG@5: 63.99%
+  Recall@10: 62.50%  Precision@10: 50.00%  nDCG@10: 64.14%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9990  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第二节 | 急性肾小球肾炎 > ##### 【诊断与鉴别诊断】链
+    [ ] #2  score=0.9984  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型 > #### 三、原发性肾小球疾病的临床分型
+    [\u2713] #3  score=0.9983  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第二节 | 急性肾小球肾炎 > ##### 【临床表现和实验室检
+    [ ] #4  score=0.9978  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第一节 急性感染后肾小球肾炎 > #### 一、急
+    [\u2713] #5  score=0.9943  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第三节 | 急进性肾小球肾炎 > ##### 【临床表现和实验室
+[5/50] Evaluating: 急进性肾小球肾炎的免疫病理分型有哪些？
+  Matching headings: ['病因和发病机制', '病因和发病机制', '病理']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=急进性肾小球肾炎的免疫病理分型有哪些？
+Reranker: 40 -> 40 nodes | scores=[1.000, 1.000, 0.998, 0.998, 0.998, 0.997, 0.997, 0.997, 0.996, 0.996, 0.995, 0.995, 0.995, 0.995, 0.992, 0.990, 0.988, 0.988, 0.985, 0.981, 0.976, 0.968, 0.964, 0.954, 0.939, 0.921, 0.916, 0.915, 0.901, 0.888, 0.887, 0.884, 0.883, 0.862, 0.844, 0.702, 0.617, 0.548, 0.348, 0.255]
+RAG result | nodes=40 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 1.000) 急进性肾小球肾炎(rapidly progressive glomerulonephritis, RPGN)即急进性肾炎,是在急性肾炎综合征基础上,肾功能快速进展,病理类型为新月体肾炎的一组疾病。 急进性肾小球肾炎(rapidly progressive glomerulonephritis, RPGN)即急进性肾炎,是在急性肾炎综合征基础上,肾功能快速进展,病理类型为新月体肾炎的一组疾病。 【病因和发病机制】根据免疫病理RPGN可分为三型,每型病因和发病机制各异:①I型,又称抗肾小球基底膜(GBM)型,因抗...
+  Retrieved 40 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 0.00%  Precision@10: 0.00%  nDCG@10: 0.00%
+  MRR: 0.0909
+  Top 5 results:
+    [ ] #1  score=0.9997  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第三节 | 急进性肾小球肾炎
+    [ ] #2  score=0.9996  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第二节 急进性肾炎
+    [ ] #3  score=0.9981  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第一节 急性感染后肾小球肾炎 > #### 一、急
+    [ ] #4  score=0.9979  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第二节 急进性肾炎
+    [ ] #5  score=0.9979  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第一节 急性感染后肾小球肾炎 > #### 一、急
+[6/50] Evaluating: 急进性肾小球肾炎怎么治疗？
+  Matching headings: ['治疗', '临床表现和实验室检查', '诊断与鉴别诊断']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=急进性肾小球肾炎怎么治疗？
+Reranker: 40 -> 40 nodes | scores=[0.997, 0.996, 0.995, 0.995, 0.994, 0.989, 0.987, 0.986, 0.982, 0.980, 0.970, 0.968, 0.966, 0.964, 0.961, 0.960, 0.956, 0.953, 0.948, 0.946, 0.941, 0.916, 0.901, 0.898, 0.895, 0.864, 0.797, 0.789, 0.754, 0.742, 0.719, 0.702, 0.682, 0.589, 0.568, 0.531, 0.451, 0.423, 0.313, 0.299]
+RAG result | nodes=40 answer_preview=【来源1】肾病学完整版.md (score: 0.997) 单、明确、与治疗及患者预后关联性强。分为急性肾小球肾炎、急进性肾小球肾炎、慢性肾小球肾炎、无症状性血尿和/或蛋白尿（隐匿性肾小球疾病）及原发性肾病综合征5个类型。以下做一简介，详细内容参见有关章节。 （一）急性肾小球肾炎（简称急性肾炎） 1. 起病较急，病程一般在3个月以内，病情轻重不一。 2. 部分病例有急性链球菌或其他病原微生物的前驱感染史，多在感染后1～4周发病。 3. 一般有镜下或肉眼血尿，蛋白尿，可有管型尿。常有高血压及水肿。 4. 多数患者有一过性血清补体C3下降，有时有短暂的氮质血症，超声检查双肾无缩小。 5. 大多数预...
+  Retrieved 40 docs
+  Recall@5: 13.04%  Precision@5: 60.00%  nDCG@5: 52.96%
+  Recall@10: 17.39%  Precision@10: 40.00%  nDCG@10: 41.00%
+  MRR: 0.5000
+  Top 5 results:
+    [ ] #1  score=0.9969  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型 > #### 三、原发性肾小球疾病的临床分型
+    [\u2713] #2  score=0.9960  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第二节 | 急性肾小球肾炎 > ##### 【诊断与鉴别诊断】链
+    [\u2713] #3  score=0.9952  heading=# 第十一篇肾小球疾病 > ## 第四章肾小球疾病治疗概述
+    [\u2713] #4  score=0.9946  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第四节 足细胞病:微小病变肾病、局灶节段性肾小球硬
+    [ ] #5  score=0.9940  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第一节 急性感染后肾小球肾炎 > #### 一、急
+[7/50] Evaluating: IgA肾病的临床表现和诊断方法？
+  Matching headings: ['临床表现', '诊断与鉴别诊断']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=IgA肾病的临床表现和诊断方法？
+Reranker: 40 -> 39 nodes | scores=[0.999, 0.999, 0.999, 0.998, 0.998, 0.997, 0.997, 0.997, 0.997, 0.996, 0.996, 0.996, 0.996, 0.996, 0.995, 0.995, 0.994, 0.993, 0.993, 0.992, 0.992, 0.992, 0.987, 0.985, 0.979, 0.978, 0.974, 0.974, 0.971, 0.969, 0.933, 0.886, 0.863, 0.830, 0.823, 0.819, 0.649, 0.549, 0.516, 0.081]
+RAG result | nodes=39 answer_preview=【来源1】肾病学完整版.md (score: 0.999) 或免疫组化明确 IgA 或以 IgA 为主的免疫复合物在肾小球系膜区弥漫沉积。因此无论临床表现上考虑 IgA 肾病的可能性多大，肾活检病理在确诊 IgA 肾病是必备的。结合临床表现需与以下疾病鉴别： （一）链球菌感染后急性肾小球肾炎 典型表现为上呼吸道感染（或急性扁桃体炎）后出现血尿，感染潜伏期为1～2周，可有蛋白尿、水肿、高血压，甚至一过性氮质血症等急性肾炎综合征表现，初期血清C3下降并随病情好转而恢复，部分患者ASO水平增高，病程为良性过程，多数患者经休息和一般支持治疗数周或数月多数可痊愈。少数以急性肾炎综合征起病的IgA肾病患者...
+  Retrieved 39 docs
+  Recall@5: 20.00%  Precision@5: 60.00%  nDCG@5: 68.44%
+  Recall@10: 40.00%  Precision@10: 60.00%  nDCG@10: 65.31%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9992  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 六、诊断与鉴别
+    [\u2713] #2  score=0.9986  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 四、临床表现
+    [ ] #3  score=0.9985  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 三、肾脏病理学
+    [ ] #4  score=0.9984  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 三、肾脏病理学
+    [\u2713] #5  score=0.9977  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 四、临床表现 
+[8/50] Evaluating: IgA肾病的治疗原则？
+  Matching headings: ['治疗', '治疗', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=IgA肾病的治疗原则？
+Reranker: 40 -> 40 nodes | scores=[0.997, 0.996, 0.995, 0.992, 0.987, 0.980, 0.978, 0.975, 0.974, 0.972, 0.968, 0.960, 0.956, 0.955, 0.952, 0.938, 0.931, 0.926, 0.919, 0.905, 0.901, 0.890, 0.869, 0.856, 0.854, 0.833, 0.802, 0.793, 0.766, 0.717, 0.713, 0.654, 0.597, 0.565, 0.545, 0.448, 0.432, 0.428, 0.324, 0.205]
+RAG result | nodes=40 answer_preview=【来源1】肾病学完整版.md (score: 0.997) 肾活检病理检查是明确和鉴别三种疾病的主要手段，电镜检查尤为重要。此外，肾组织及皮肤IV型胶原α链检测乃至家系的连锁分析对于鉴别家族性IgA肾病、薄基膜肾病和Alport综合征具有重要意义[161]。 (五) 肾小球系膜区继发性 IgA 沉积的疾病 慢性酒精性肝病、血清学阴性脊椎关节病、强直型脊柱炎、Reiter综合征（非淋病性尿道炎，结膜炎，关节炎）、银屑病关节炎等，肾脏免疫病理可显示肾小球系膜区有IgA沉积，但肾脏临床表现不常见，部分疾病表现为HLA B-27增高，血清和唾液中IgA浓度升高，而且均有相应的肾外 改变，不难与IgA肾...
+  Retrieved 40 docs
+  Recall@5: 12.50%  Precision@5: 60.00%  nDCG@5: 52.96%
+  Recall@10: 29.17%  Precision@10: 70.00%  nDCG@10: 62.14%
+  MRR: 0.5000
+  Top 5 results:
+    [ ] #1  score=0.9974  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 六、诊断与鉴别
+    [\u2713] #2  score=0.9957  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 七、治疗 > 
+    [\u2713] #3  score=0.9953  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 七、治疗
+    [\u2713] #4  score=0.9916  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 七、治疗 > 
+    [ ] #5  score=0.9866  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 四、临床表现 
+[9/50] Evaluating: 肾病综合征的诊断标准是什么？
+  Matching headings: ['病因', '诊断与鉴别诊断']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾病综合征的诊断标准是什么？
+Reranker: 40 -> 36 nodes | scores=[0.993, 0.991, 0.980, 0.980, 0.960, 0.957, 0.948, 0.940, 0.939, 0.924, 0.900, 0.806, 0.780, 0.764, 0.757, 0.748, 0.729, 0.709, 0.706, 0.701, 0.666, 0.645, 0.612, 0.598, 0.550, 0.531, 0.531, 0.505, 0.500, 0.464, 0.382, 0.354, 0.251, 0.208, 0.142, 0.131, 0.076, 0.069, 0.051, 0.014]
+RAG result | nodes=36 answer_preview=【来源1】肾病学完整版.md (score: 0.993) ，这就很容易将ATN等肾实质疾病误判成HRS。③2015年修订的诊断标准，正如作者在文内注明的那样，是针对“HRS-AKI”的诊断标准[21]，即只是1型HRS的诊断标准，并未包括2型HRS诊断内容。 ，这就很容易将ATN等肾实质疾病误判成HRS。③2015年修订的诊断标准，正如作者在文内注明的那样，是针对“HRS-AKI”的诊断标准[21]，即只是1型HRS的诊断标准，并未包括2型HRS诊断内容。 表 20-2-4-1 国际腹水俱乐部制定及修订的肝肾综合征诊断标准 | 1996年标准[20]:主要标准●具有严重肝衰竭及门脉高压的慢性...
+  Retrieved 36 docs
+  Recall@5: 40.00%  Precision@5: 40.00%  nDCG@5: 47.04%
+  Recall@10: 60.00%  Precision@10: 30.00%  nDCG@10: 58.34%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9926  heading=# 第二十篇心脏、肝脏 及肺疾病时 肾损害 > ## 第二章肝肾综合征 > ### 第四节 肝肾综合征的诊断与鉴别诊断 
+    [ ] #2  score=0.9913  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第五节 | 肾病综合征
+    [ ] #3  score=0.9798  heading=# 第十一篇肾小球疾病 > ## 第二章肾病综合征
+    [ ] #4  score=0.9797  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第四节 足细胞病:微小病变肾病、局灶节段性肾小球硬
+    [\u2713] #5  score=0.9604  heading=# 第十一篇肾小球疾病 > ## 第二章肾病综合征 > #### 一、肾病综合征的病因分类
+[10/50] Evaluating: 肾病综合征的病理类型有哪些？
+  Matching headings: ['病理类型及其临床特征', '病理类型及其临床特征', '病理类型及其临床特征']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾病综合征的病理类型有哪些？
+Reranker: 40 -> 40 nodes | scores=[0.999, 0.999, 0.998, 0.998, 0.997, 0.995, 0.994, 0.992, 0.992, 0.988, 0.983, 0.981, 0.980, 0.978, 0.978, 0.971, 0.971, 0.960, 0.949, 0.948, 0.940, 0.938, 0.915, 0.908, 0.898, 0.897, 0.886, 0.880, 0.847, 0.843, 0.766, 0.739, 0.723, 0.678, 0.646, 0.638, 0.577, 0.535, 0.527, 0.455]
+RAG result | nodes=40 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.999) 综合征(nephrotic syndrome, NS)是一组以大量蛋白尿(>3.5g/d)、低白蛋白血症(血清白蛋白<30g/L)、水肿、高脂血症为基本特征的临床综合征。其中前两项为诊断的必备条件。 综合征(nephrotic syndrome, NS)是一组以大量蛋白尿(>3.5g/d)、低白蛋白血症(血清白蛋白<30g/L)、水肿、高脂血症为基本特征的临床综合征。其中前两项为诊断的必备条件。 【病因】NS 按病因可分为原发性和继发性两大类。原发性 NS 表现为不同类型的病理改变, 常见的有: ①微小病变型...
+  Retrieved 40 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 0.00%  Precision@10: 0.00%  nDCG@10: 0.00%
+  MRR: 0.0000
+  Top 5 results:
+    [ ] #1  score=0.9992  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第五节 | 肾病综合征
+    [ ] #2  score=0.9989  heading=# 第十一篇肾小球疾病 > ## 第二章肾病综合征 > #### 一、肾病综合征的病因分类
+    [ ] #3  score=0.9984  heading=# 第十一篇肾小球疾病 > ## 第二章肾病综合征 > #### 一、肾病综合征的病因分类
+    [ ] #4  score=0.9978  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第一节 | 肾小球疾病概述 > ##### 【原发性肾小球疾病的
+    [ ] #5  score=0.9969  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第五节 | 肾病综合征 > ##### 【病理生理】
+[11/50] Evaluating: 肾病综合征的并发症有哪些？
+  Matching headings: ['并发症', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾病综合征的并发症有哪些？
+Reranker: 40 -> 37 nodes | scores=[0.999, 0.998, 0.997, 0.994, 0.979, 0.976, 0.971, 0.945, 0.940, 0.934, 0.929, 0.919, 0.919, 0.911, 0.903, 0.886, 0.849, 0.843, 0.813, 0.769, 0.748, 0.694, 0.676, 0.668, 0.659, 0.644, 0.565, 0.531, 0.527, 0.502, 0.415, 0.362, 0.316, 0.278, 0.240, 0.127, 0.118, 0.030, 0.012, 0.008]
+RAG result | nodes=37 answer_preview=【来源1】肾病学完整版.md (score: 0.999) ubgraph Membrane E -->|回吸收| F end ``` 图 11-2-0-2 水肿形成的间质局部机制（修正后的 starling 动力学说） 三、肾病综合征的主要并发症 (一) 感染 在抗生素应用之前的年代，细菌感染是本征特别是小儿患者的主要死因[57]。主要为肺炎双球菌、溶血性链球菌等引起的腹膜炎、胸膜炎、皮下感染、呼吸道感染（支气管炎或小叶肺炎）等[58]。感染起病多隐袭，临床表现不典型。本征时也易引起泌尿系感染。但尿中出现有核细胞时不要轻易诊断泌尿系感染，应该用沉渣涂片染色法区别尿中有核细胞是中性粒细胞或是肾...
+  Retrieved 37 docs
+  Recall@5: 11.76%  Precision@5: 40.00%  nDCG@5: 27.73%
+  Recall@10: 29.41%  Precision@10: 50.00%  nDCG@10: 38.63%
+  MRR: 0.2500
+  Top 5 results:
+    [ ] #1  score=0.9993  heading=## 第一章肾脏发育生物学
+    [ ] #2  score=0.9983  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第五节 膜性肾病 > #### 二、发病机制
+    [ ] #3  score=0.9974  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第五节 | 肾病综合征 > ##### 【病理类型及其临床特征】
+    [\u2713] #4  score=0.9937  heading=# 第十一篇肾小球疾病 > ## 第二章肾病综合征 > #### 三、肾病综合征的主要并发症 > ###### (一) 
+    [\u2713] #5  score=0.9790  heading=# 第十一篇肾小球疾病 > ## 第二章肾病综合征 > #### 三、肾病综合征的主要并发症 > ###### （四）肾
+[12/50] Evaluating: 肾病综合征的糖皮质激素使用原则？
+  Matching headings: ['治疗', '治疗', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾病综合征的糖皮质激素使用原则？
+Reranker: 40 -> 37 nodes | scores=[0.996, 0.995, 0.991, 0.986, 0.985, 0.985, 0.985, 0.984, 0.983, 0.981, 0.975, 0.971, 0.968, 0.967, 0.963, 0.958, 0.950, 0.947, 0.943, 0.932, 0.926, 0.920, 0.916, 0.901, 0.891, 0.879, 0.861, 0.856, 0.847, 0.822, 0.801, 0.654, 0.654, 0.644, 0.520, 0.456, 0.411, 0.017, 0.010, 0.002]
+RAG result | nodes=37 answer_preview=【来源1】肾病学完整版.md (score: 0.996) 防伊氏肺孢子虫肺炎 $^{[58-60]}$ 。在高危人群中使用多种免疫抑制剂治疗时，应该使用抗病毒药物，例如伐昔洛韦，预防巨细胞病毒感染，这一策略在实体器官移植领域非常有效 $^{[61]}$ 。 防伊氏肺孢子虫肺炎 $^{[58-60]}$ 。在高危人群中使用多种免疫抑制剂治疗时，应该使用抗病毒药物，例如伐昔洛韦，预防巨细胞病毒感染，这一策略在实体器官移植领域非常有效 $^{[61]}$ 。 防伊氏肺孢子虫肺炎 $^{[58-60]}$ 。在高危人群中使用多种免疫抑制剂治疗时，应该使用抗病毒药物，例如伐昔洛韦，预防巨细胞病毒感染，...
+  Retrieved 37 docs
+  Recall@5: 17.39%  Precision@5: 80.00%  nDCG@5: 78.60%
+  Recall@10: 30.43%  Precision@10: 70.00%  nDCG@10: 73.13%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9958  heading=# 第三十篇肾脏疾病常用 治疗 > ## 第二章糖皮质激素 > ### 第五节 副作用及其防治措施 > #### 二、副
+    [ ] #2  score=0.9947  heading=# 第一篇
+    [\u2713] #3  score=0.9915  heading=# 第三十篇肾脏疾病常用 治疗 > ## 第二章糖皮质激素 > ### 第二节 作用机制
+    [\u2713] #4  score=0.9862  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第三节 IgA 肾病 > #### 七、治疗 > 
+    [\u2713] #5  score=0.9850  heading=# 第十一篇肾小球疾病 > ## 第二章肾病综合征 > #### 四、肾病综合征的治疗 > ###### （二）肾病综合
+[13/50] Evaluating: 慢性肾小球肾炎的临床表现和治疗目标？
+  Matching headings: ['临床表现和实验室检查', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=慢性肾小球肾炎的临床表现和治疗目标？
+Reranker: 40 -> 40 nodes | scores=[0.998, 0.998, 0.996, 0.996, 0.996, 0.995, 0.994, 0.994, 0.994, 0.993, 0.993, 0.991, 0.991, 0.988, 0.988, 0.988, 0.985, 0.984, 0.982, 0.980, 0.976, 0.973, 0.968, 0.962, 0.962, 0.962, 0.957, 0.918, 0.913, 0.913, 0.906, 0.851, 0.829, 0.785, 0.725, 0.545, 0.499, 0.341, 0.274, 0.104]
+RAG result | nodes=40 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.998) 性肾小球肾炎)、系膜毛细血管性肾小球肾炎、膜性肾病及局灶节段性肾小球硬化等。病变进展至晚期,所有病理类型均可进展为程度不等的肾小球硬化,相应肾单位的肾小管萎缩、肾间质纤维化;肾脏体积缩小、肾皮质变薄。 性肾小球肾炎)、系膜毛细血管性肾小球肾炎、膜性肾病及局灶节段性肾小球硬化等。病变进展至晚期,所有病理类型均可进展为程度不等的肾小球硬化,相应肾单位的肾小管萎缩、肾间质纤维化;肾脏体积缩小、肾皮质变薄。 【临床表现和实验室检查】慢性肾炎可发生于任何年龄,但以中青年为主,男性多见。多数起病缓慢、隐匿。慢性肾炎临床表...
+  Retrieved 40 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 21.43%  Precision@10: 30.00%  nDCG@10: 21.80%
+  MRR: 0.1667
+  Top 5 results:
+    [ ] #1  score=0.9982  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第七节 | 慢性肾小球肾炎 > ##### 【病理】慢性肾炎可见
+    [ ] #2  score=0.9978  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型 > #### 三、原发性肾小球疾病的临床分型 > ####
+    [ ] #3  score=0.9963  heading=# 第十一篇肾小球疾病 > ## 第一章肾小球疾病的临床分型 > #### 三、原发性肾小球疾病的临床分型 > ####
+    [ ] #4  score=0.9960  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第七节 | 慢性肾小球肾炎 > ##### 【诊断与鉴别诊断】病
+    [ ] #5  score=0.9957  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第四节 足细胞病:微小病变肾病、局灶节段性肾小球硬
+[14/50] Evaluating: 慢性肾小球肾炎的降压治疗首选什么药？
+  Matching headings: ['治疗', '治疗', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=慢性肾小球肾炎的降压治疗首选什么药？
+Reranker: 40 -> 39 nodes | scores=[0.998, 0.994, 0.992, 0.989, 0.987, 0.986, 0.985, 0.982, 0.979, 0.977, 0.972, 0.968, 0.944, 0.937, 0.926, 0.919, 0.915, 0.899, 0.892, 0.878, 0.878, 0.858, 0.813, 0.789, 0.786, 0.778, 0.771, 0.754, 0.740, 0.733, 0.695, 0.676, 0.552, 0.470, 0.411, 0.379, 0.265, 0.114, 0.109, 0.006]
+RAG result | nodes=39 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.998) /min时,噻嗪类无效应改用袢利尿剂。利尿效果欠佳时,可使用袢利尿剂和其他不同机制的利尿剂协同治疗,如醛固酮拮抗剂、血管升压素 $V_{2}$ 受体拮抗剂。利尿剂一般不宜过多和长久使用,注意避免电解质 /min时,噻嗪类无效应改用袢利尿剂。利尿效果欠佳时,可使用袢利尿剂和其他不同机制的利尿剂协同治疗,如醛固酮拮抗剂、血管升压素 $V_{2}$ 受体拮抗剂。利尿剂一般不宜过多和长久使用,注意避免电解质 /min时,噻嗪类无效应改用袢利尿剂。利尿效果欠佳时,可使用袢利尿剂和其他不同机制的利尿剂协同治疗,如醛固酮拮...
+  Retrieved 39 docs
+  Recall@5: 11.11%  Precision@5: 60.00%  nDCG@5: 63.99%
+  Recall@10: 22.22%  Precision@10: 60.00%  nDCG@10: 61.46%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9979  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第七节 | 慢性肾小球肾炎 > ##### 【治疗】慢性肾炎的治
+    [ ] #2  score=0.9942  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第一节 急性感染后肾小球肾炎 > #### 一、急
+    [\u2713] #3  score=0.9924  heading=# 第十一篇肾小球疾病 > ## 第四章肾小球疾病治疗概述
+    [ ] #4  score=0.9892  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第四节 足细胞病:微小病变肾病、局灶节段性肾小球硬
+    [\u2713] #5  score=0.9872  heading=# 第十七篇肾脏与高血压 > ## 第二章慢性肾脏病与高血压 > #### 四、慢性肾脏病高血压治疗
+[15/50] Evaluating: 狼疮性肾炎的病理分型？
+  Matching headings: ['病理', '临床表现']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=狼疮性肾炎的病理分型？
+Reranker: 40 -> 40 nodes | scores=[1.000, 1.000, 0.999, 0.999, 0.999, 0.999, 0.998, 0.997, 0.997, 0.997, 0.997, 0.996, 0.995, 0.993, 0.992, 0.991, 0.988, 0.983, 0.982, 0.979, 0.977, 0.975, 0.961, 0.945, 0.933, 0.924, 0.877, 0.855, 0.854, 0.799, 0.782, 0.645, 0.602, 0.602, 0.399, 0.331, 0.282, 0.240, 0.205, 0.198]
+RAG result | nodes=40 answer_preview=【来源1】肾病学完整版.md (score: 1.000) 临床和病理经验重新修订了狼疮性肾炎的病理组织学分类，针对以往病理学分类的不足，在2003年公布了新的标准（表15-1-0-2），是截至目前最为被国际认可的狼疮性肾炎的分型体系 $^{[123]}$ 。 临床和病理经验重新修订了狼疮性肾炎的病理组织学分类，针对以往病理学分类的不足，在2003年公布了新的标准（表15-1-0-2），是截至目前最为被国际认可的狼疮性肾炎的分型体系 $^{[123]}$ 。 临床和病理经验重新修订了狼疮性肾炎的病理组织学分类，针对以往病理学分类的不足，在2003年公布了新的标准（表15-1-0-2），是截至目...
+  Retrieved 40 docs
+  Recall@5: 8.33%  Precision@5: 60.00%  nDCG@5: 68.44%
+  Recall@10: 22.22%  Precision@10: 80.00%  nDCG@10: 79.52%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9997  heading=# 第十五篇自身免疫性 疾病及结缔 组织疾病肾 损害 > ## 第一章 狼疮性肾炎系统性红斑狼疮是一种多因素参与的自身免
+    [\u2713] #2  score=0.9995  heading=# 第十五篇自身免疫性 疾病及结缔 组织疾病肾 损害 > ## 第一章 狼疮性肾炎系统性红斑狼疮是一种多因素参与的自身免
+    [ ] #3  score=0.9992  heading=## 第一章肾脏发育生物学
+    [ ] #4  score=0.9992  heading=# 第五篇 泌尿系统疾病 > ## 第三章 继发性肾病 > ### 第一节 | 狼疮性肾炎
+    [\u2713] #5  score=0.9988  heading=# 第十五篇自身免疫性 疾病及结缔 组织疾病肾 损害 > ## 第一章 狼疮性肾炎系统性红斑狼疮是一种多因素参与的自身免
+[16/50] Evaluating: 狼疮性肾炎的治疗方案？
+  Matching headings: ['治疗', '病理', '诊断']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=狼疮性肾炎的治疗方案？
+Reranker: 40 -> 37 nodes | scores=[1.000, 0.999, 0.999, 0.999, 0.999, 0.998, 0.998, 0.997, 0.996, 0.996, 0.996, 0.996, 0.996, 0.995, 0.994, 0.993, 0.993, 0.992, 0.991, 0.990, 0.987, 0.984, 0.980, 0.975, 0.970, 0.965, 0.960, 0.958, 0.951, 0.897, 0.690, 0.602, 0.542, 0.356, 0.338, 0.223, 0.111, 0.050, 0.038, 0.036]
+RAG result | nodes=37 answer_preview=【来源1】肾病学完整版.md (score: 1.000) 原则及方案。需要指出的是，KDIGO指南作为全球的肾小球肾炎临床实践指南，是在全球不同地区研究数据的基础上制定，更大范围考虑到了人种的差异，更具有普遍性及适合推广，故下文主要以此指南为基础进行介绍。 （一）不同病理类型的狼疮性肾炎患者的治疗策略 1. I型狼疮性肾炎（轻微系膜性狼疮性肾炎）由于本型患者临床上无肾脏受累的表现，且与患者肾功能的长期预后不相关，故对其的治疗主要是根据肾外狼疮的临床表现决定是否用糖皮质激素和免疫抑制剂。 2. Ⅱ型狼疮性肾炎（系膜增生性狼疮性肾炎）对Ⅱ型狼疮性肾炎伴尿蛋白<3g/d的患者需根据狼疮的肾外临床表...
+  Retrieved 37 docs
+  Recall@5: 14.29%  Precision@5: 100.00%  nDCG@5: 100.00%
+  Recall@10: 25.71%  Precision@10: 90.00%  nDCG@10: 92.66%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9999  heading=# 第十五篇自身免疫性 疾病及结缔 组织疾病肾 损害 > ## 第一章 狼疮性肾炎系统性红斑狼疮是一种多因素参与的自身免
+    [\u2713] #2  score=0.9995  heading=# 第十五篇自身免疫性 疾病及结缔 组织疾病肾 损害 > ## 第一章 狼疮性肾炎系统性红斑狼疮是一种多因素参与的自身免
+    [\u2713] #3  score=0.9989  heading=# 第十五篇自身免疫性 疾病及结缔 组织疾病肾 损害 > ## 第一章 狼疮性肾炎系统性红斑狼疮是一种多因素参与的自身免
+    [\u2713] #4  score=0.9987  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第五节 膜性肾病 > #### 六、治疗与预后
+    [\u2713] #5  score=0.9986  heading=# 第十五篇自身免疫性 疾病及结缔 组织疾病肾 损害 > ## 第一章 狼疮性肾炎系统性红斑狼疮是一种多因素参与的自身免
+[17/50] Evaluating: 糖尿病肾脏病的发病机制和临床分期？
+  Matching headings: ['发病机制', '临床表现与分期']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=糖尿病肾脏病的发病机制和临床分期？
+Reranker: 40 -> 36 nodes | scores=[0.997, 0.977, 0.960, 0.906, 0.891, 0.889, 0.889, 0.881, 0.879, 0.858, 0.848, 0.838, 0.810, 0.735, 0.644, 0.613, 0.611, 0.610, 0.602, 0.592, 0.470, 0.437, 0.422, 0.416, 0.390, 0.335, 0.319, 0.308, 0.248, 0.245, 0.218, 0.204, 0.181, 0.175, 0.168, 0.141, 0.084, 0.073, 0.053, 0.022]
+RAG result | nodes=36 answer_preview=【来源1】肾病学完整版.md (score: 0.997) 应肾盏可以被来自邻近肾盏的造影剂充盈而显影正常，核素方法则显示局部灌注和吸收不良，甚至肾影局部皱缩。有一组9例节段 性肾梗死患者，IVP7例正常，核素方法9例皆见异常。本法还十分便于观察溶栓疗效。 应肾盏可以被来自邻近肾盏的造影剂充盈而显影正常，核素方法则显示局部灌注和吸收不良，甚至肾影局部皱缩。有一组9例节段 性肾梗死患者，IVP7例正常，核素方法9例皆见异常。本法还十分便于观察溶栓疗效。 三、糖尿病肾损害 糖尿病损害肾脏可累及肾脏所有结构，发生不同的病理改变，具有不同的临床意义。这些损害包括与代谢异常有关的肾小球硬化症、小动脉性肾...
+  Retrieved 36 docs
+  Recall@5: 12.50%  Precision@5: 20.00%  nDCG@5: 13.12%
+  Recall@10: 37.50%  Precision@10: 30.00%  nDCG@10: 24.71%
+  MRR: 0.2000
+  Top 5 results:
+    [ ] #1  score=0.9969  heading=# 第七篇肾脏影像学及 核素检查 > ## 第二章放射性核素检查 > ### 第三节 临床应用 > #### 二、肾血管
+    [ ] #2  score=0.9770  heading=# 第五篇 泌尿系统疾病 > ## 第三章 继发性肾病 > ### 第二节 | 糖尿病肾脏病
+    [ ] #3  score=0.9603  heading=# 第十五篇自身免疫性 疾病及结缔 组织疾病肾 损害 > ## 第十三章移植相关肾脏疾病 > #### 二、其他器官移植
+    [ ] #4  score=0.9062  heading=# 第十六篇代谢性疾病 肾损害 > ## 第一章糖尿病肾脏疾病 > ### 第七节 糖尿病和 ESRD > #### 一
+    [\u2713] #5  score=0.8910  heading=# 第十六篇代谢性疾病 肾损害 > ## 第一章糖尿病肾脏疾病 > ### 第二节 DKD 的发病机制 > #### 一
+[18/50] Evaluating: 糖尿病肾脏病怎么治疗？
+  Matching headings: ['治疗', '治疗', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=糖尿病肾脏病怎么治疗？
+Reranker: 40 -> 32 nodes | scores=[0.996, 0.976, 0.970, 0.953, 0.902, 0.901, 0.843, 0.798, 0.787, 0.786, 0.767, 0.717, 0.704, 0.673, 0.658, 0.657, 0.629, 0.576, 0.556, 0.526, 0.515, 0.471, 0.351, 0.340, 0.332, 0.289, 0.259, 0.249, 0.236, 0.209, 0.200, 0.122, 0.093, 0.065, 0.062, 0.053, 0.052, 0.040, 0.029, 0.017]
+RAG result | nodes=32 answer_preview=【来源1】肾病学完整版.md (score: 0.996) 应肾盏可以被来自邻近肾盏的造影剂充盈而显影正常，核素方法则显示局部灌注和吸收不良，甚至肾影局部皱缩。有一组9例节段 性肾梗死患者，IVP7例正常，核素方法9例皆见异常。本法还十分便于观察溶栓疗效。 应肾盏可以被来自邻近肾盏的造影剂充盈而显影正常，核素方法则显示局部灌注和吸收不良，甚至肾影局部皱缩。有一组9例节段 性肾梗死患者，IVP7例正常，核素方法9例皆见异常。本法还十分便于观察溶栓疗效。 三、糖尿病肾损害 糖尿病损害肾脏可累及肾脏所有结构，发生不同的病理改变，具有不同的临床意义。这些损害包括与代谢异常有关的肾小球硬化症、小动脉性肾...
+  Retrieved 32 docs
+  Recall@5: 20.00%  Precision@5: 80.00%  nDCG@5: 66.08%
+  Recall@10: 35.00%  Precision@10: 70.00%  nDCG@10: 63.71%
+  MRR: 0.5000
+  Top 5 results:
+    [ ] #1  score=0.9960  heading=# 第七篇肾脏影像学及 核素检查 > ## 第二章放射性核素检查 > ### 第三节 临床应用 > #### 二、肾血管
+    [\u2713] #2  score=0.9759  heading=# 第十七篇肾脏与高血压 > ## 第三章肾血管性高血压与缺血性肾脏病 > #### 三、肾血管性高血压和缺血性肾脏病的
+    [\u2713] #3  score=0.9699  heading=# 第十七篇肾脏与高血压 > ## 第三章肾血管性高血压与缺血性肾脏病 > #### 三、肾血管性高血压和缺血性肾脏病的
+    [\u2713] #4  score=0.9529  heading=# 第十六篇代谢性疾病 肾损害 > ## 第一章糖尿病肾脏疾病 > ### 第六节 治疗 > #### 二、肾素-血管紧
+    [\u2713] #5  score=0.9021  heading=# 第十六篇代谢性疾病 肾损害 > ## 第一章糖尿病肾脏疾病 > ### 第六节 治疗 > #### 二、肾素-血管紧
+[19/50] Evaluating: ANCA相关性血管炎肾损害的临床表现和治疗？
+  Matching headings: ['临床表现', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=ANCA相关性血管炎肾损害的临床表现和治疗？
+Reranker: 40 -> 39 nodes | scores=[0.998, 0.998, 0.994, 0.994, 0.993, 0.990, 0.986, 0.985, 0.985, 0.984, 0.982, 0.982, 0.977, 0.977, 0.973, 0.970, 0.966, 0.964, 0.957, 0.954, 0.953, 0.949, 0.943, 0.943, 0.935, 0.927, 0.803, 0.757, 0.722, 0.647, 0.626, 0.560, 0.492, 0.366, 0.276, 0.238, 0.195, 0.170, 0.101, 0.041]
+RAG result | nodes=39 answer_preview=【来源1】肾病学完整版.md (score: 0.998) 1999年肾活检数据中，ANCA相关血管炎肾损害是65岁以上老年肾病患者的第一位病因（18.3%），其次为膜性肾病（12.4%）、淀粉样变性（8.3%）、IgA肾病（6.2%）等 $^{[31]}$ 1999年肾活检数据中，ANCA相关血管炎肾损害是65岁以上老年肾病患者的第一位病因（18.3%），其次为膜性肾病（12.4%）、淀粉样变性（8.3%）、IgA肾病（6.2%）等 $^{[31]}$ 1999年肾活检数据中，ANCA相关血管炎肾损害是65岁以上老年肾病患者的第一位病因（18.3%），其次为膜性肾病（12.4%）、淀粉样变性...
+  Retrieved 39 docs
+  Recall@5: 20.00%  Precision@5: 20.00%  nDCG@5: 21.40%
+  Recall@10: 40.00%  Precision@10: 20.00%  nDCG@10: 31.20%
+  MRR: 0.5000
+  Top 5 results:
+    [ ] #1  score=0.9983  heading=# 第三十二篇老年肾与老年肾脏疾病 > ## 第二章老年肾脏疾病的临床特点 > #### 三、常见老年肾脏疾病的临床特点
+    [\u2713] #2  score=0.9978  heading=# 第五篇 泌尿系统疾病 > ## 第三章 继发性肾病 > ### 第三节 | 血管炎肾损害 > ##### 【临床表现
+    [ ] #3  score=0.9940  heading=# 第十九篇恶性肿瘤相关 的肾损害 > ## 第三章实体肿瘤肾损害 > #### 二、发病机制 > ###### （四）
+    [ ] #4  score=0.9937  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第二节 急进性肾炎 > #### 三、少免疫沉积型
+    [ ] #5  score=0.9927  heading=# 第十一篇肾小球疾病 > ## 第三章常见的肾小球疾病 > ### 第二节 急进性肾炎 > #### 三、少免疫沉积型
+[20/50] Evaluating: 高尿酸肾损害的分类和临床表现？
+  Matching headings: ['发病机制', '临床表现']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=高尿酸肾损害的分类和临床表现？
+Reranker: 40 -> 40 nodes | scores=[0.998, 0.995, 0.991, 0.986, 0.984, 0.979, 0.962, 0.962, 0.950, 0.949, 0.945, 0.939, 0.932, 0.921, 0.915, 0.910, 0.909, 0.901, 0.896, 0.888, 0.851, 0.821, 0.770, 0.766, 0.751, 0.744, 0.701, 0.700, 0.658, 0.606, 0.598, 0.590, 0.570, 0.405, 0.379, 0.377, 0.368, 0.303, 0.159, 0.138]
+RAG result | nodes=40 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.998) 下,非同日两次空腹血尿酸男性高于420μmol/L,女性高于360μmol/L。高尿酸肾损害分为急性高尿酸血症性肾病、慢性高尿酸血症性肾病以及尿酸性肾结石。尿酸约2/3由肾脏排泄,1/3由肠道排泄。 下,非同日两次空腹血尿酸男性高于420μmol/L,女性高于360μmol/L。高尿酸肾损害分为急性高尿酸血症性肾病、慢性高尿酸血症性肾病以及尿酸性肾结石。尿酸约2/3由肾脏排泄,1/3由肠道排泄。 【发病机制】引起高尿酸血症的常见原因包括： 1. 遗传因素 家族性高尿酸血症肾病、次黄嘌呤鸟嘌呤磷酸核糖基转移酶缺...
+  Retrieved 40 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 0.00%  Precision@10: 0.00%  nDCG@10: 0.00%
+  MRR: 0.0909
+  Top 5 results:
+    [ ] #1  score=0.9979  heading=# 第五篇 泌尿系统疾病 > ## 第三章 继发性肾病 > ### 第四节 | 高尿酸肾损害
+    [ ] #2  score=0.9955  heading=# 第五篇 泌尿系统疾病 > ## 第三章 继发性肾病 > ### 第四节 | 高尿酸肾损害 > ##### 【病理】光
+    [ ] #3  score=0.9915  heading=# 第十六篇代谢性疾病 肾损害 > ## 第二章高尿酸血症相关肾损害 > #### 三、高尿酸血症和肾脏病 > ####
+    [ ] #4  score=0.9857  heading=# 第十篇急性肾损伤 / 急性肾衰竭 > ## 第三章特殊类型的急性肾损伤 > ### 第五节 结晶尿相关 AKI > 
+    [ ] #5  score=0.9840  heading=# 第十六篇代谢性疾病 肾损害 > ## 第二章高尿酸血症相关肾损害 > #### 二、肾脏在血尿酸水平调节中的作用 >
+[21/50] Evaluating: 急性间质性肾炎的病因和临床表现？
+  Matching headings: ['病因和发病机制', '临床表现']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=急性间质性肾炎的病因和临床表现？
+Reranker: 40 -> 40 nodes | scores=[0.998, 0.994, 0.994, 0.992, 0.990, 0.990, 0.990, 0.988, 0.986, 0.986, 0.984, 0.983, 0.981, 0.979, 0.976, 0.966, 0.941, 0.939, 0.937, 0.930, 0.921, 0.908, 0.906, 0.904, 0.894, 0.881, 0.878, 0.847, 0.806, 0.790, 0.781, 0.759, 0.577, 0.575, 0.488, 0.457, 0.386, 0.359, 0.286, 0.191]
+RAG result | nodes=40 answer_preview=【来源1】肾病学完整版.md (score: 0.998) uinine | | 灰黄霉素 | Griseofulvin | 注：NSAIDs：非甾体抗炎药（或称非固醇类消炎药）；\*可能导致肉芽肿性间质性肾炎的药物 二、临床表现 [1,17,22,33] （一）肾脏损伤表现 急性间质性肾炎的临床表现缺乏特异性。绝大部分患者的肾脏损伤出现在应用致病药物2～3周以后，可自数天至数月不等。约半数患者表现为迅速发生的少尿型或非少尿型急性肾损伤（AKI） $^{[2]}$ ，10%～20%患者呈少尿型，老年患者更多见。大约1/3的患者血肌酐表现为数周或数月内发生的持续亚急性升高，符合急性肾脏病的肾功能...
+  Retrieved 40 docs
+  Recall@5: 9.09%  Precision@5: 20.00%  nDCG@5: 21.40%
+  Recall@10: 18.18%  Precision@10: 20.00%  nDCG@10: 20.51%
+  MRR: 0.5000
+  Top 5 results:
+    [ ] #1  score=0.9983  heading=## 第一章肾脏发育生物学
+    [\u2713] #2  score=0.9944  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第三节 | 急进性肾小球肾炎 > ##### 【临床表现和实验室
+    [ ] #3  score=0.9940  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第三节 | 急进性肾小球肾炎 > ##### 【诊断与鉴别诊断】
+    [ ] #4  score=0.9918  heading=# 第十二篇肾小管疾病 > ## 第九章 肾小管酸中毒 > ### 第六节 肾小管酸中毒的鉴别
+    [ ] #5  score=0.9904  heading=# 第十三篇肾间质疾病 > ## 第一章概述及临床表型 > #### 四、发病机制 > ###### (五) 肾小球功能
+[22/50] Evaluating: 慢性间质性肾炎的病因和诊断？
+  Matching headings: ['病因', '诊断与鉴别诊断']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=慢性间质性肾炎的病因和诊断？
+Reranker: 40 -> 40 nodes | scores=[0.993, 0.991, 0.990, 0.985, 0.984, 0.983, 0.971, 0.970, 0.970, 0.962, 0.961, 0.960, 0.955, 0.948, 0.932, 0.928, 0.924, 0.911, 0.882, 0.850, 0.841, 0.840, 0.818, 0.811, 0.743, 0.737, 0.722, 0.643, 0.597, 0.468, 0.466, 0.442, 0.413, 0.387, 0.369, 0.365, 0.309, 0.283, 0.256, 0.172]
+RAG result | nodes=40 answer_preview=【来源1】肾病学完整版.md (score: 0.993) 因素的影响。此时一方面应尽快进行可疑病原体的检查、创造条件进行肾活检，另一方面需在尽量避免应用可疑药物的情况下积极抗感染治疗，密切监测停药及抗感染治疗后病情的动态变化，综合各方面的信息做出病因诊断。 因素的影响。此时一方面应尽快进行可疑病原体的检查、创造条件进行肾活检，另一方面需在尽量避免应用可疑药物的情况下积极抗感染治疗，密切监测停药及抗感染治疗后病情的动态变化，综合各方面的信息做出病因诊断。 五、治疗及预后 [1,2,23,33,148,149] 针对可疑病原体给予积极的抗感染及支持治疗最为重要，对重症呈少尿或无尿型急性肾损伤表现...
+  Retrieved 40 docs
+  Recall@5: 12.50%  Precision@5: 20.00%  nDCG@5: 33.92%
+  Recall@10: 25.00%  Precision@10: 20.00%  nDCG@10: 33.27%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9929  heading=# 第十三篇肾间质疾病 > ## 第四章感染相关性间质性肾炎 > #### 四、诊断与鉴别诊断 [1,2,23,33,1
+    [ ] #2  score=0.9913  heading=# 第十三篇肾间质疾病 > ## 第一章概述及临床表型 > #### 四、发病机制 > ###### （四）其他发病机制
+    [ ] #3  score=0.9898  heading=# 第十二篇肾小管疾病 > ## 第九章 肾小管酸中毒 > ### 第六节 肾小管酸中毒的鉴别
+    [ ] #4  score=0.9854  heading=# 第十三篇肾间质疾病 > ## 第二章药物相关性间质性肾炎 > ### 第二节 药物相关的慢性间质性肾炎 > ####
+    [ ] #5  score=0.9836  heading=# 第五篇 泌尿系统疾病 > ## 第二章 > ### 第七节 | 慢性肾小球肾炎
+[23/50] Evaluating: 尿路感染的致病菌和易感因素？
+  Matching headings: ['病因和发病机制', '病因和发病机制']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=尿路感染的致病菌和易感因素？
+Reranker: 40 -> 34 nodes | scores=[0.999, 0.998, 0.998, 0.995, 0.994, 0.989, 0.987, 0.984, 0.981, 0.981, 0.970, 0.968, 0.966, 0.926, 0.914, 0.899, 0.894, 0.889, 0.857, 0.781, 0.741, 0.730, 0.723, 0.716, 0.628, 0.613, 0.612, 0.463, 0.445, 0.347, 0.312, 0.189, 0.173, 0.151, 0.077, 0.068, 0.064, 0.047, 0.028, 0.011]
+RAG result | nodes=34 answer_preview=【来源1】肾病学完整版.md (score: 0.999) 。③ 尿液及其成分的抗菌活性：尿液的低pH、含高浓度尿素和有机酸，尿液过分低张或高张等，均不利于细菌的生长。④ 男性前列腺液可抗革兰阴性肠道细菌，与其中的锌浓度有关。⑤ 尿道括约肌的天然屏障作用。 （三）易感因素 尿路感染常见的易感因素主要有： 1. 尿路梗阻 尿路梗阻者尿路感染的发生率较正常者高 12 倍 [8]。尿路梗阻可由尿路解剖或功能异常引起，包括结石、肿瘤、狭窄、畸形或神经性膀胱等，导致尿流不畅，细菌不易被冲洗清除，而在尿流淤积处大量繁殖。此外梗阻以上部位压力增加，影响了组织的血液供应和黏膜的抵抗力，故易于发生感染。 2. ...
+  Retrieved 34 docs
+  Recall@5: 28.57%  Precision@5: 40.00%  nDCG@5: 34.52%
+  Recall@10: 71.43%  Precision@10: 50.00%  nDCG@10: 55.20%
+  MRR: 0.5000
+  Top 5 results:
+    [ ] #1  score=0.9992  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第一章 尿路感染尿路感染（urinary tract infecti
+    [\u2713] #2  score=0.9984  heading=# 第五篇 泌尿系统疾病 > ## 第五章 尿路感染 > ##### 【病因和发病机制】 > ###### （二）发病机
+    [ ] #3  score=0.9979  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第一章 尿路感染尿路感染（urinary tract infecti
+    [ ] #4  score=0.9946  heading=# 第五篇 泌尿系统疾病 > ## 第五章 尿路感染 > ##### 【流行病学】临床常见的尿路感染多为细菌感染。据统计
+    [\u2713] #5  score=0.9939  heading=# 第五篇 泌尿系统疾病 > ## 第五章 尿路感染 > ##### 【病因和发病机制】 > ###### （二）发病机
+[24/50] Evaluating: 急性膀胱炎和急性肾盂肾炎的临床表现有何区别？
+  Matching headings: ['临床表现', '临床表现', '并发症']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=急性膀胱炎和急性肾盂肾炎的临床表现有何区别？
+Reranker: 40 -> 36 nodes | scores=[1.000, 0.999, 0.997, 0.996, 0.996, 0.993, 0.990, 0.970, 0.948, 0.940, 0.933, 0.920, 0.914, 0.895, 0.882, 0.876, 0.841, 0.840, 0.813, 0.767, 0.761, 0.749, 0.723, 0.656, 0.628, 0.591, 0.531, 0.453, 0.378, 0.334, 0.320, 0.311, 0.230, 0.157, 0.124, 0.110, 0.064, 0.056, 0.021, 0.000]
+RAG result | nodes=36 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 1.000) 临床表现】 (一) 急性膀胱炎 发病突然,在成年人尿路感染中最为常见,主要表现为尿频、尿急、尿痛(尿 路刺激征)。可出现耻骨上膀胱区疼痛不适、尿道烧灼感，尿液浑浊，可有肉眼血尿。一般无全身感染症状。 (二) 肾盂肾炎 1. 急性肾盂肾炎 (1) 泌尿系统症状: 尿路刺激征、血尿, 患侧或双侧腰部疼痛, 肋脊角有明显压痛或叩击痛。 (2) 全身症状: 寒战、高热, 可伴头痛、恶心、呕吐和食欲减退等。 2. 慢性肾盂肾炎 临床表现复杂,全身及泌尿系统局部表现均不典型。多由泌尿系统存在梗阻或畸形等复杂因素导致尿路感...
+  Retrieved 36 docs
+  Recall@5: 15.38%  Precision@5: 40.00%  nDCG@5: 30.08%
+  Recall@10: 23.08%  Precision@10: 30.00%  nDCG@10: 26.14%
+  MRR: 0.3333
+  Top 5 results:
+    [ ] #1  score=0.9997  heading=# 第一篇
+    [ ] #2  score=0.9990  heading=# 第五篇 泌尿系统疾病 > ## 第五章 尿路感染 > ##### 【病理改变】
+    [\u2713] #3  score=0.9974  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第一章 尿路感染尿路感染（urinary tract infecti
+    [ ] #4  score=0.9962  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第二章慢性肾盂肾炎 > ### 第二节 临床及病理表现、诊断及鉴别诊
+    [\u2713] #5  score=0.9958  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第一章 尿路感染尿路感染（urinary tract infecti
+[25/50] Evaluating: 尿路感染的抗菌治疗原则？
+  Matching headings: ['治疗', '治疗', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=尿路感染的抗菌治疗原则？
+Reranker: 40 -> 40 nodes | scores=[0.992, 0.990, 0.988, 0.985, 0.985, 0.984, 0.978, 0.978, 0.970, 0.962, 0.960, 0.956, 0.954, 0.932, 0.932, 0.917, 0.898, 0.888, 0.884, 0.882, 0.866, 0.805, 0.794, 0.783, 0.741, 0.722, 0.665, 0.662, 0.542, 0.530, 0.517, 0.497, 0.478, 0.467, 0.328, 0.327, 0.324, 0.278, 0.256, 0.248]
+RAG result | nodes=40 answer_preview=【来源1】肾病学完整版.md (score: 0.992) 重的肾盂肾炎多见于复杂性尿路感染，尤其有尿路梗阻者。部分病人可并发急性肾乳头坏死，甚至发生急性肾衰竭、革兰阴性细菌败血症等；感染病灶处穿破肾包膜可引起肾周脓肿或并发肾盂积脓。 #### 十三、治疗 （一）常用抗菌药物及其选用原则 尿路感染治疗的目标是以最低廉的费用、最小的副作用、最少的细菌耐药来获得最佳的治疗效果。同时，预防或治疗败血症，减轻全身或局部症状，清除隐藏在生殖道和肠道内的病原体，预防远期后遗症。 治疗尿路感染的常用抗菌药物有磺胺类、 $\beta$ -内酰胺类、氨基苷类以及喹诺酮类。应考虑以下问题： 1. 选用对致病菌敏感...
+  Retrieved 40 docs
+  Recall@5: 10.00%  Precision@5: 60.00%  nDCG@5: 44.69%
+  Recall@10: 23.33%  Precision@10: 70.00%  nDCG@10: 57.74%
+  MRR: 0.3333
+  Top 5 results:
+    [ ] #1  score=0.9921  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第一章 尿路感染尿路感染（urinary tract infecti
+    [ ] #2  score=0.9897  heading=# 第五篇 泌尿系统疾病 > ## 第五章 尿路感染 > ##### 【诊断】 > ###### （二）尿路感染的鉴别诊
+    [\u2713] #3  score=0.9876  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第一章 尿路感染尿路感染（urinary tract infecti
+    [\u2713] #4  score=0.9852  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第一章 尿路感染尿路感染（urinary tract infecti
+    [\u2713] #5  score=0.9846  heading=# 第二十三篇泌尿系统感染 及反流性肾病 > ## 第一章 尿路感染尿路感染（urinary tract infecti
+[26/50] Evaluating: 肾小管性酸中毒的分型和各型特点？
+  Matching headings: ['临床表现', '临床表现']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾小管性酸中毒的分型和各型特点？
+Reranker: 40 -> 38 nodes | scores=[0.998, 0.998, 0.995, 0.995, 0.990, 0.990, 0.989, 0.988, 0.986, 0.986, 0.985, 0.985, 0.982, 0.981, 0.951, 0.949, 0.932, 0.932, 0.910, 0.902, 0.900, 0.826, 0.682, 0.680, 0.602, 0.538, 0.517, 0.463, 0.414, 0.394, 0.378, 0.335, 0.271, 0.234, 0.193, 0.140, 0.134, 0.131, 0.083, 0.060]
+RAG result | nodes=38 answer_preview=【来源1】肾病学完整版.md (score: 0.998) 氢盐重吸收减少，碳酸氢盐丢失增多。由于尿酸化主要由远端小管完成，因此远端RTA时的尿pH可持续高于5.3。尿pH持续升高是远端RTA的标志，并可用于鉴别远端与近端RTA，后者的尿pH可降低至<5.3。 氢盐重吸收减少，碳酸氢盐丢失增多。由于尿酸化主要由远端小管完成，因此远端RTA时的尿pH可持续高于5.3。尿pH持续升高是远端RTA的标志，并可用于鉴别远端与近端RTA，后者的尿pH可降低至<5.3。 表 8-7-4-2 肾小管酸中毒的特征 | 特征 | 1型:远端肾小管 | 2型:近端肾小管 | 4型:低肾素性醛固酮减少症 | | -...
+  Retrieved 38 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 0.00%  Precision@10: 0.00%  nDCG@10: 0.00%
+  MRR: 0.0909
+  Top 5 results:
+    [ ] #1  score=0.9981  heading=# 第八篇水、电解质、 酸碱代谢紊 乱与肾脏 > ## 第七章酸碱平衡与失调 > ### 第四节 酸碱紊乱 > ####
+    [ ] #2  score=0.9981  heading=# 第五篇 泌尿系统疾病 > ## 第六章 肾小管疾病 > ### 第一节 | 肾小管性酸中毒
+    [ ] #3  score=0.9952  heading=# 第十二篇肾小管疾病 > ## 第九章 肾小管酸中毒 > ### 第一节 概述 > #### 二、常用实验室检查
+    [ ] #4  score=0.9948  heading=# 第十二篇肾小管疾病 > ## 第九章 肾小管酸中毒 > ### 第一节 概述 > #### 一、肾脏酸化功能的生理学
+    [ ] #5  score=0.9900  heading=# 第五篇 泌尿系统疾病 > ## 第六章 肾小管疾病 > ### 第一节 | 肾小管性酸中毒 > #### 二、近端肾
+[27/50] Evaluating: Fanconi综合征的诊断条件？
+  Matching headings: ['诊断', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=Fanconi综合征的诊断条件？
+Reranker: 40 -> 17 nodes | scores=[0.992, 0.992, 0.980, 0.939, 0.910, 0.876, 0.787, 0.253, 0.238, 0.211, 0.199, 0.169, 0.143, 0.111, 0.107, 0.103, 0.101, 0.099, 0.090, 0.068, 0.058, 0.058, 0.057, 0.056, 0.051, 0.046, 0.045, 0.041, 0.040, 0.039, 0.037, 0.036, 0.035, 0.025, 0.024, 0.023, 0.022, 0.020, 0.018, 0.012]
+RAG result | nodes=17 answer_preview=【来源1】肾病学完整版.md (score: 0.992) 移植肾,间质性肾炎等 | | 遗传性 | | 特发性 | | 胱氨酸蓄积症 | | 遗传性果糖不耐受症 | | 酪氨酸血症 | | Wilson 病 | Lowe 综合征 糖原累积病 线粒体病 移植肾,间质性肾炎等 | | 遗传性 | | 特发性 | | 胱氨酸蓄积症 | | 遗传性果糖不耐受症 | | 酪氨酸血症 | | Wilson 病 | Lowe 综合征 糖原累积病 线粒体病 二、临床表现 Fanconi综合征主要分两类，一类是血和尿的生化异常，另一类是这些生化异常导致的临床症状（表12-4-0-2）。 表 12-4-0-2 ...
+  Retrieved 17 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 50.00%  Precision@10: 10.00%  nDCG@10: 20.44%
+  MRR: 0.1429
+  Top 5 results:
+    [ ] #1  score=0.9918  heading=# 第十二篇肾小管疾病 > ## 第四章近端肾小管多种转运功能障碍 > #### 一、病因和病理生理
+    [ ] #2  score=0.9916  heading=# 第十二篇肾小管疾病 > ## 第四章近端肾小管多种转运功能障碍 > #### 四、其他遗传性疾病引起的继发性 Fan
+    [ ] #3  score=0.9795  heading=# 第五篇 泌尿系统疾病 > ## 第六章 肾小管疾病 > ### 第二节 | Fanconi 综合征
+    [ ] #4  score=0.9386  heading=# 第十二篇肾小管疾病 > ## 第四章近端肾小管多种转运功能障碍 > #### 三、特发性 Fanconi 综合征
+    [ ] #5  score=0.9103  heading=# 第十二篇肾小管疾病 > ## 第四章近端肾小管多种转运功能障碍 > #### 二、临床表现
+[28/50] Evaluating: 肾动脉狭窄的诊断金标准？
+  Matching headings: ['临床表现', '诊断']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾动脉狭窄的诊断金标准？
+Reranker: 40 -> 32 nodes | scores=[0.998, 0.998, 0.998, 0.995, 0.993, 0.993, 0.991, 0.991, 0.988, 0.965, 0.960, 0.952, 0.944, 0.944, 0.943, 0.941, 0.884, 0.755, 0.752, 0.651, 0.589, 0.588, 0.579, 0.526, 0.410, 0.327, 0.298, 0.274, 0.260, 0.244, 0.214, 0.191, 0.100, 0.090, 0.059, 0.059, 0.046, 0.035, 0.011, 0.003]
+RAG result | nodes=32 answer_preview=【来源1】肾病学完整版.md (score: 0.998) $^{[24]}$ 。曾有学者对单中心的530例ARF病人分析发现，由RAS引起的占16%，其中1/4因服用ACEI类药物而诱发 $^{[25]}$ 。及时停用ACEI或ARB急性肾损伤可自行恢复。 $^{[24]}$ 。曾有学者对单中心的530例ARF病人分析发现，由RAS引起的占16%，其中1/4因服用ACEI类药物而诱发 $^{[25]}$ 。及时停用ACEI或ARB急性肾损伤可自行恢复。 $^{[24]}$ 。曾有学者对单中心的530例ARF病人分析发现，由RAS引起的占16%，其中1/4因服用ACEI类药物而诱发 $^{[2...
+  Retrieved 32 docs
+  Recall@5: 23.81%  Precision@5: 100.00%  nDCG@5: 100.00%
+  Recall@10: 38.10%  Precision@10: 80.00%  nDCG@10: 85.53%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9983  heading=# 第十七篇肾脏与高血压 > ## 第三章肾血管性高血压与缺血性肾脏病 > #### 二、缺血性肾脏病 > ######
+    [\u2713] #2  score=0.9979  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第一节 肾动脉狭窄 > #### 五、诊断方法及评
+    [\u2713] #3  score=0.9978  heading=# 第七篇肾脏影像学及 核素检查 > ## 第一章肾脏的影像学检查 > ### 第四节 肾脏介入放射学 > #### 一
+    [\u2713] #4  score=0.9949  heading=# 第七篇肾脏影像学及 核素检查 > ## 第一章肾脏的影像学检查 > ### 第三节 超声在肾脏疾病诊断治疗中的应用 
+    [\u2713] #5  score=0.9933  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第一节 肾动脉狭窄 > #### 五、诊断方法及评
+[29/50] Evaluating: 肾动脉狭窄怎么治疗？
+  Matching headings: ['治疗', '诊断']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾动脉狭窄怎么治疗？
+Reranker: 40 -> 39 nodes | scores=[0.999, 0.998, 0.997, 0.996, 0.995, 0.994, 0.994, 0.992, 0.992, 0.991, 0.988, 0.986, 0.984, 0.984, 0.982, 0.971, 0.969, 0.957, 0.955, 0.954, 0.952, 0.924, 0.923, 0.922, 0.909, 0.893, 0.831, 0.820, 0.785, 0.775, 0.740, 0.729, 0.673, 0.555, 0.538, 0.536, 0.490, 0.480, 0.455, 0.066]
+RAG result | nodes=39 answer_preview=【来源1】肾病学完整版.md (score: 0.999) $ 。1978年Gruntzig报道了第1例球囊扩张治疗肾动脉狭窄 $^{[7]}$ 。由于介入治疗具有微创、可重复等优势，从20世纪90年代开始，介入治疗逐渐代替手术成为治疗肾动脉狭窄的首选方法。 (一) 病因 肾动脉狭窄的首要病因为动脉粥样硬化，占所有患者的 $90\%$ 。其他病因主要有纤维肌发育不良（fibromuscular dysplasia，FMD）和大动脉炎；少见病因有主动脉夹层、神经纤维瘤病、动脉受压及放射损伤等[8]。 （二）诊断 动脉造影一直是肾动脉狭窄诊断的金标准。随着超声、CTA、MRA技术的逐步发展，其诊断...
+  Retrieved 39 docs
+  Recall@5: 16.67%  Precision@5: 80.00%  nDCG@5: 78.60%
+  Recall@10: 25.00%  Precision@10: 60.00%  nDCG@10: 64.58%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9989  heading=# 第七篇肾脏影像学及 核素检查 > ## 第一章肾脏的影像学检查 > ### 第四节 肾脏介入放射学 > #### 一
+    [ ] #2  score=0.9977  heading=# 第七篇肾脏影像学及 核素检查 > ## 第一章肾脏的影像学检查 > ### 第四节 肾脏介入放射学
+    [\u2713] #3  score=0.9967  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第一节 肾动脉狭窄 > #### 六、治疗 > #
+    [\u2713] #4  score=0.9956  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第一节 肾动脉狭窄 > #### 五、诊断方法及评
+    [\u2713] #5  score=0.9950  heading=# 第十七篇肾脏与高血压 > ## 第三章肾血管性高血压与缺血性肾脏病 > #### 三、肾血管性高血压和缺血性肾脏病的
+[30/50] Evaluating: 肾动脉栓塞的栓子来源和临床表现？
+  Matching headings: ['临床表现', '诊断']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾动脉栓塞的栓子来源和临床表现？
+Reranker: 40 -> 35 nodes | scores=[0.997, 0.994, 0.991, 0.991, 0.984, 0.979, 0.975, 0.964, 0.964, 0.947, 0.934, 0.922, 0.885, 0.876, 0.864, 0.851, 0.824, 0.774, 0.703, 0.679, 0.650, 0.649, 0.646, 0.612, 0.537, 0.490, 0.464, 0.453, 0.443, 0.368, 0.360, 0.254, 0.231, 0.134, 0.124, 0.096, 0.075, 0.062, 0.025, 0.020]
+RAG result | nodes=35 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.997) 及不能用其他原因解释的反复急性肺水肿发作,肾动脉血管成形术可能带来临床获益。 ### 第二节 | 肾动脉栓塞和血栓形成 肾动脉栓塞和血栓形成都可以引起肾动脉主干和分支的急性闭塞,出现相应临床表现。 及不能用其他原因解释的反复急性肺水肿发作,肾动脉血管成形术可能带来临床获益。 ### 第二节 | 肾动脉栓塞和血栓形成 肾动脉栓塞和血栓形成都可以引起肾动脉主干和分支的急性闭塞,出现相应临床表现。 【流行病学和病理生理】肾动脉栓塞(renal artery embolism)通常发生在单侧肾脏,但15%\~30%的...
+  Retrieved 35 docs
+  Recall@5: 0.00%  Precision@5: 0.00%  nDCG@5: 0.00%
+  Recall@10: 10.00%  Precision@10: 10.00%  nDCG@10: 6.63%
+  MRR: 0.1111
+  Top 5 results:
+    [ ] #1  score=0.9970  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第一节 | 肾动脉狭窄 > ##### 【治疗】
+    [ ] #2  score=0.9936  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第二节 肾动脉急性闭塞、肾动脉瘤 > ######
+    [ ] #3  score=0.9914  heading=## 第一章肾脏发育生物学
+    [ ] #4  score=0.9907  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第二节 肾动脉急性闭塞、肾动脉瘤 > ######
+    [ ] #5  score=0.9843  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第二节 | 肾动脉栓塞和血栓形成 > ##### 【
+[31/50] Evaluating: 良性小动脉性肾硬化症最早出现什么临床表现？
+  Matching headings: ['临床表现', '病理']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=良性小动脉性肾硬化症最早出现什么临床表现？
+Reranker: 40 -> 38 nodes | scores=[0.999, 0.986, 0.977, 0.976, 0.918, 0.914, 0.884, 0.838, 0.827, 0.826, 0.813, 0.787, 0.770, 0.758, 0.728, 0.700, 0.696, 0.684, 0.648, 0.632, 0.630, 0.625, 0.608, 0.597, 0.568, 0.541, 0.535, 0.523, 0.488, 0.441, 0.435, 0.413, 0.410, 0.362, 0.348, 0.293, 0.286, 0.225, 0.087, 0.044]
+RAG result | nodes=38 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.999) ign arteriolar nephrosclerosis）与恶性小动脉性肾硬化症（malignant arteriolar nephrosclerosis）。 #### 一、良性小动脉性肾硬化症 ign arteriolar nephrosclerosis）与恶性小动脉性肾硬化症（malignant arteriolar nephrosclerosis）。 #### 一、良性小动脉性肾硬化症 【病因】由长期未控制良好的高血压引起,高血压持续5\~10年即可出现良性小动脉性肾硬化症的病理改变和相关临床表现。...
+  Retrieved 38 docs
+  Recall@5: 9.09%  Precision@5: 40.00%  nDCG@5: 31.56%
+  Recall@10: 18.18%  Precision@10: 40.00%  nDCG@10: 34.76%
+  MRR: 0.3333
+  Top 5 results:
+    [ ] #1  score=0.9986  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第三节 | 小动脉性肾硬化症
+    [ ] #2  score=0.9861  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第三节 | 小动脉性肾硬化症 > #### 二、恶性
+    [\u2713] #3  score=0.9773  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第三节 | 小动脉性肾硬化症 > #### 二、恶性
+    [\u2713] #4  score=0.9762  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第三节 | 小动脉性肾硬化症 > #### 一、良性
+    [ ] #5  score=0.9184  heading=## 第一章肾脏发育生物学
+[32/50] Evaluating: 恶性小动脉性肾硬化症的降压原则？
+  Matching headings: ['病理', '临床表现', '防治']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=恶性小动脉性肾硬化症的降压原则？
+Reranker: 40 -> 28 nodes | scores=[0.991, 0.988, 0.957, 0.935, 0.891, 0.747, 0.669, 0.640, 0.636, 0.614, 0.603, 0.585, 0.534, 0.534, 0.470, 0.429, 0.407, 0.366, 0.362, 0.349, 0.348, 0.305, 0.267, 0.262, 0.225, 0.218, 0.171, 0.102, 0.086, 0.060, 0.055, 0.055, 0.055, 0.051, 0.048, 0.046, 0.042, 0.031, 0.022, 0.015]
+RAG result | nodes=28 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.991) 进行性恶化,常于发病数周至数月后出现少尿,进入终末期肾病。眼底检查可见视盘水肿。同时伴有中枢神经系统受损表现(如头痛、惊厥发作甚至昏迷等)和心脏病变(如充血性心力衰竭),甚至出现微血管病性溶血性贫血。 进行性恶化,常于发病数周至数月后出现少尿,进入终末期肾病。眼底检查可见视盘水肿。同时伴有中枢神经系统受损表现(如头痛、惊厥发作甚至昏迷等)和心脏病变(如充血性心力衰竭),甚至出现微血管病性溶血性贫血。 【防治】恶性高血压是内科急症，应及时控制严重高血压，防止威胁生命的心、脑、肾并发症发生。但血压也不能下降过快、...
+  Retrieved 28 docs
+  Recall@5: 40.00%  Precision@5: 40.00%  nDCG@5: 55.31%
+  Recall@10: 40.00%  Precision@10: 20.00%  nDCG@10: 55.31%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9911  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第三节 | 小动脉性肾硬化症 > #### 二、恶性
+    [\u2713] #2  score=0.9885  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第三节 | 小动脉性肾硬化症 > #### 一、良性
+    [ ] #3  score=0.9574  heading=# 第十七篇肾脏与高血压 > ## 第四章恶性高血压(高血压急症)肾损伤 > #### 六、诊断
+    [ ] #4  score=0.9349  heading=## 第一章肾脏发育生物学
+    [ ] #5  score=0.8915  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第三节 | 小动脉性肾硬化症 > #### 二、恶性
+[33/50] Evaluating: 肾静脉血栓好发于哪类肾病患者？
+  Matching headings: ['临床表现', '治疗']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.
+Embedding: HuggingFace local | path=E:\xiangmu\dachuang\models\bce-embedding-base_v1 device=cuda
+LlamaIndex Settings initialized | chunk_size=1000 overlap=100 embed=HuggingFaceEmbedding
+Building index from IDs objects
+Retrieved 40 nodes | method=hybrid query=肾静脉血栓好发于哪类肾病患者？
+Reranker: 40 -> 34 nodes | scores=[0.988, 0.981, 0.977, 0.976, 0.958, 0.955, 0.955, 0.912, 0.904, 0.886, 0.886, 0.874, 0.843, 0.826, 0.770, 0.765, 0.741, 0.707, 0.690, 0.588, 0.562, 0.545, 0.513, 0.451, 0.432, 0.431, 0.392, 0.358, 0.354, 0.351, 0.254, 0.173, 0.153, 0.105, 0.075, 0.053, 0.024, 0.023, 0.018, 0.011]
+RAG result | nodes=34 answer_preview=【来源1】《内科学 第10版(1)带书签》完整版.md (score: 0.988) 40/90mmHg以下。 若恶性小动脉性肾硬化症已发生并已出现肾衰竭,应及时进行透析治疗。部分病人在血压控制后肾血管损害可以得到一定程度恢复,从而避免维持性透析。 ### 第四节 | 肾静脉血栓形成 40/90mmHg以下。 若恶性小动脉性肾硬化症已发生并已出现肾衰竭,应及时进行透析治疗。部分病人在血压控制后肾血管损害可以得到一定程度恢复,从而避免维持性透析。 ### 第四节 | 肾静脉血栓形成 【流行病学和发病机制】肾静脉血栓形成(renal vein thrombosis, RVT)可发生在单侧或双侧肾静...
+  Retrieved 34 docs
+  Recall@5: 11.76%  Precision@5: 40.00%  nDCG@5: 48.52%
+  Recall@10: 17.65%  Precision@10: 30.00%  nDCG@10: 38.82%
+  MRR: 1.0000
+  Top 5 results:
+    [\u2713] #1  score=0.9882  heading=# 第五篇 泌尿系统疾病 > ## 第七章 肾血管疾病 > ### 第三节 | 小动脉性肾硬化症 > #### 二、恶性
+    [ ] #2  score=0.9812  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第三节 肾静脉血栓 > #### 二、肾病综合征导
+    [ ] #3  score=0.9770  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第三节 肾静脉血栓 > #### 一、病因及发病情
+    [\u2713] #4  score=0.9761  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第三节 肾静脉血栓 > #### 三、临床表现 [
+    [ ] #5  score=0.9578  heading=# 第十四篇肾脏血管疾病 > ## 第二章肾脏大血管疾病 > ### 第三节 肾静脉血栓 > #### 五、辅助检查 >
+[34/50] Evaluating: 常染色体显性多囊肾病的致病基因？
+  Matching headings: ['病因和发病机制', '临床表现']
+Loading SentenceTransformer model from E:\xiangmu\dachuang\models\bce-embedding-base_v1.

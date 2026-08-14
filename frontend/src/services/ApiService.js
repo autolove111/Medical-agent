@@ -1,0 +1,494 @@
+import axios from "axios";
+
+// 自动决定 API baseURL：默认使用代理前缀 `/api`
+let computedBase = "/api";
+
+// 修复：仅在开发环境输出调试日志
+if (import.meta.env.DEV && typeof window !== "undefined" && window.location) {
+  console.log("[ApiService] base:", computedBase, "location:", window.location.href);
+}
+
+const apiClient = axios.create({
+  baseURL: computedBase,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+/**
+ * API 服务模块
+ *
+ * 职责：
+ * 1. 封装所有HTTP请求（axios / fetch）
+ * 2. 处理认证令牌的自动添加
+ * 3. 统一错误处理
+ * 4. 管理请求/响应拦截器
+ */
+
+// 请求拦截器：自动添加认证令牌
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+// 修复：401 拦截器使用 Vue Router 进行导航，避免全页刷新
+let routerInstance = null;
+export function setRouter(router) {
+  routerInstance = router;
+}
+
+// 响应拦截器：处理 401 未授权情况
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Token 过期或无效，清除本地存储
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      // 使用 Vue Router 进行导航（如果可用）
+      if (routerInstance) {
+        routerInstance.push("/login");
+      } else {
+        // 降级：使用 window.location
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error.response?.data || error);
+  },
+);
+
+export default {
+  /**
+   * 设置认证令牌
+   */
+  setAuthToken(token) {
+    if (token) {
+      apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    } else {
+      delete apiClient.defaults.headers.common["Authorization"];
+    }
+  },
+
+  post(url, data) {
+    return apiClient.post(url, data);
+  },
+
+  get(url, config) {
+    return apiClient.get(url, config);
+  },
+
+  put(url, data) {
+    return apiClient.put(url, data);
+  },
+
+  delete(url) {
+    return apiClient.delete(url);
+  },
+
+  async analyzeReport(reportContent) {
+    try {
+      const response = await apiClient.post("/v1/agent/analyze-report", null, {
+        params: { reportContent },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Analyze report failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * AI对话 (传统的同步阻塞方式，等待全部生成完毕才返回)
+   */
+  async chat(userQuery) {
+    try {
+      const response = await apiClient.post("/v1/agent/chat", null, {
+        params: { userQuery },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Chat request failed:", error);
+      throw error;
+    }
+  },
+
+  async uploadReport(file) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await apiClient.post(
+        "/v1/agent/upload-report",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Upload report failed:", error);
+      throw error;
+    }
+  },
+
+  async searchKnowledge(keyword) {
+    try {
+      const response = await apiClient.get("/v1/knowledge/search", {
+        params: { keyword },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Search knowledge failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 追加病历记录（对话确认后调用）
+   */
+  async appendMedicalHistory(disease, status) {
+    try {
+      const url = `/v1/user/medical-history/append?disease=${encodeURIComponent(
+        disease || "",
+      )}&status=${encodeURIComponent(status || "")}`;
+      const response = await apiClient.post(url, null);
+      return response.data;
+    } catch (error) {
+      console.error("Append medical history failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 更新过敏药物
+   */
+  async updateDrugAllergy(drugAllergy) {
+    try {
+      const url = `/v1/user/drug-allergy/update?drugAllergy=${encodeURIComponent(
+        drugAllergy || "",
+      )}`;
+      const response = await apiClient.post(url, null);
+      return response.data;
+    } catch (error) {
+      console.error("Update drug allergy failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 查询用户病历历史
+   */
+  async getMedicalHistory() {
+    try {
+      const response = await apiClient.get("/v1/user/medical-history");
+      return response.data;
+    } catch (error) {
+      console.error("Get medical history failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 用户登出：通知后端清空会话对话历史
+   */
+  async logout() {
+    try {
+      await apiClient.post("/v1/auth/logout");
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    }
+  },
+
+  /**
+   * 从AI回复中提取疾病和药物过敏信息
+   */
+  async extractKeywords(text) {
+    try {
+      const response = await apiClient.post("/v1/agent/extract-keywords", {
+        text,
+      });
+      return {
+        isMedical: response.data.isMedical || false,
+        diseases: response.data.diseases || "",
+        drugAllergies: response.data.drugAllergies || "",
+      };
+    } catch (error) {
+      console.error("Extract keywords failed:", error);
+      return { isMedical: false, diseases: "", drugAllergies: "" };
+    }
+  },
+
+  // ================================================================
+  // Phase 1-5 新增 API (对接自研 Python FastAPI 后端 :8000)
+  // ================================================================
+
+  async uploadLabReport(file, userId = "default", sessionId = "default", age = 0, gender = "") {
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("user_id", userId)
+      formData.append("session_id", sessionId)
+      formData.append("age", age || 0)
+      formData.append("gender", gender || "")
+      const response = await apiClient.post("/report/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      return response.data
+    } catch (error) {
+      console.error("Upload lab report failed:", error)
+      throw error
+    }
+  },
+
+  async pollOcrStatus(taskId, timeout = 300000, interval = 3000) {
+    const start = Date.now()
+    while (Date.now() - start < timeout) {
+      try {
+        const response = await apiClient.get(`/report/ocr-status/${taskId}`)
+        const data = response.data
+        if (data.status === "done") return data
+        if (data.status === "error") throw new Error(data.error || "OCR 识别失败")
+        // queued / processing → 继续轮询
+      } catch (e) {
+        if (e.response?.status === 404) throw new Error("任务不存在")
+        throw e
+      }
+      await new Promise(r => setTimeout(r, interval))
+    }
+    throw new Error("OCR 识别超时")
+  },
+
+  async getReportDetail(reportId) {
+    const response = await apiClient.get(`/report/${reportId}`)
+    return response.data
+  },
+
+  async listUserReports(userId = "default") {
+    const response = await apiClient.get(`/report/user/${userId}/list`)
+    return response.data
+  },
+
+  /**
+   * ReAct 多步推理流式对话
+   * 修复：改为 POST 方法，消息放在请求体中
+   */
+  async streamReAct(userId, message, reportId, sessionId, onEvent, onError, onDone) {
+    const prefix = ((apiClient.defaults && apiClient.defaults.baseURL) || "").replace(/\/$/, "")
+    const url = `${prefix}/chat/react-stream`
+    try {
+      const token = localStorage.getItem("token")
+      const headers = {
+        Accept: "text/event-stream",
+        "Content-Type": "application/json",
+      }
+      if (token) headers.Authorization = `Bearer ${token}`
+
+      // 修复：使用 POST 方法，消息放在请求体中
+      const body = {
+        user_id: userId || "default",
+        session_id: sessionId || "default",
+        message: message,
+      }
+      if (reportId) body.report_id = reportId
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      // 修复：添加防御性检查
+      if (!response.body?.getReader) {
+        throw new Error("Streaming not supported")
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder("utf-8")
+      let buffer = ""
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() || ""
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const payload = line.slice(6).trim()
+            if (!payload) continue
+            try {
+              const event = JSON.parse(payload)
+              if (event.type === "done") {
+                if (onDone) onDone()
+                return
+              } else if (event.type === "error") {
+                if (onError) onError(event.message)
+                return
+              } else {
+                if (onEvent) onEvent(event)
+              }
+            } catch (e) {
+              console.warn("[streamReAct] JSON parse error:", e, payload)
+            }
+          }
+        }
+      }
+      if (onDone) onDone()
+    } catch (err) {
+      if (onError) onError(err.message)
+    }
+  },
+
+  async analyzeVision(filePath, model = null) {
+    try {
+      const response = await apiClient.post("/v1/ocr/analyze-vision", null, {
+        params: {
+          filePath,
+          ...(model ? { model } : {}),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Analyze vision failed:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 流式对话（Fetch 方案）
+   */
+  async streamChat(userQuery, onMessage, onError, onDone, options = {}) {
+    const token = localStorage.getItem("token");
+    const requestPayload =
+      typeof userQuery === "object" && userQuery !== null
+        ? { ...userQuery }
+        : { query: userQuery };
+    const queryText = requestPayload.query || requestPayload.userQuery || "";
+
+    const base =
+      (apiClient.defaults && apiClient.defaults.baseURL) ||
+      computedBase ||
+      "/api";
+    const prefix = base.replace(/\/$/, "");
+    const streamUrl = `${prefix}/v1/agent/chat/stream?userQuery=${encodeURIComponent(
+      queryText,
+    )}`;
+
+    const response = await fetch(streamUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "text/event-stream",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...requestPayload,
+        ...options,
+        query: queryText,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // 修复：添加防御性检查
+    if (!response.body?.getReader) {
+      throw new Error("Streaming not supported");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let streamDone = false;
+    let streamMeta = null;
+
+    function processEvent(eventText) {
+      const dataLines = [];
+      for (const line of eventText.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("data:")) {
+          dataLines.push(trimmed.replace(/^data:\s*/, ""));
+        }
+      }
+      if (dataLines.length === 0) return;
+      const fullData = dataLines.join("\n").trim();
+      if (!fullData || fullData === "[DONE]") {
+        streamDone = true;
+        return;
+      }
+
+      // 解析 [META:{...}] 元数据事件
+      if (fullData.startsWith("[META:") && fullData.endsWith("]")) {
+        try {
+          const metaJson = fullData.substring(6, fullData.length - 1);
+          streamMeta = JSON.parse(metaJson);
+        } catch (e) {
+          console.error("META parse error:", e);
+        }
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(fullData);
+        if (parsed.content !== undefined) {
+          onMessage(parsed.content);
+          return;
+        }
+      } catch (e) {
+        // 不是JSON，直接作为文本
+      }
+      onMessage(fullData);
+    }
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        // 修复：移除每个 chunk 的 console.log，仅在开发环境输出
+        if (import.meta.env.DEV) {
+          console.log("[SSE] read:", {
+            done,
+            chunkLen: value?.length,
+          });
+        }
+        if (done || streamDone) {
+          if (buffer.trim()) {
+            processEvent(buffer);
+          }
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE事件以双换行 \n\n 分隔
+        const events = buffer.split(/\n\n/);
+        buffer = events.pop() || "";
+
+        for (const event of events) {
+          processEvent(event);
+          if (streamDone) break;
+        }
+        // [DONE] 已收到，立即退出，不再等待下次 read
+        if (streamDone) break;
+      }
+    } finally {
+      try {
+        reader.cancel();
+      } catch (e) {
+        /* ignore */
+      }
+      if (onDone) onDone(streamMeta);
+    }
+  },
+};
